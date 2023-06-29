@@ -46,6 +46,10 @@ class TestDatabaseHasAttributes(unittest.TestCase):
         """Verifies add_condition exists in database.py"""
         self.assertDatabaseHasAttribute('add_condition')
 
+    def test_add_location_function_is_defined(self):
+        """Verifies add_location exists in database.py"""
+        self.assertDatabaseHasAttribute('add_location')
+
     def assertDatabaseHasAttribute(self, attr: str):
         """Helper function that asserts attr is in database.py"""
         self.assertTrue(
@@ -273,6 +277,11 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             database.add_condition, [(None, 'Hello')], 'Conditions'
         )
 
+    def test_location_table_not_null_constraints(self):
+        self.assertAddRecordNotNullColumnConstraints(
+            database.add_location, [(None, 'Description')], 'Locations'
+        )
+
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
         """Asserts NOT NULL constraint detected when adding record."""
         for params in params_list:
@@ -324,6 +333,17 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
                 ('name', None),
             ],
             'Conditions'
+        )
+
+    def test_add_location_creates_valid_record(self):
+        """Verifies add_location() creates a valid record."""
+        self.assertAddRecordFunction(
+            database.add_location,
+            [
+                ('NAME', 'DESCRIPTION'),
+                ('name', None)
+            ],
+            'Locations'
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
