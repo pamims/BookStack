@@ -35,7 +35,7 @@ def create_database(filename):
     cursor.execute('''
         CREATE TABLE Conditions (
             ID INTEGER PRIMARY KEY,
-            Name TEXT,
+            Name TEXT NOT NULL,
             Description TEXT
         )
     ''')
@@ -102,6 +102,13 @@ def add_genrecategory(filename: str, name: str):
             """
     __perform_query(filename, query, params)
 
+def add_condition(filename: str, name: str, description: str):
+    params = (name, description)
+    query = """
+            INSERT INTO Conditions (Name, Description)
+            VALUES (?, ?)
+            """
+    __perform_query(filename, query, params)
 
 # Helpers
 def __perform_query(filename: str, query: str, params: tuple):
