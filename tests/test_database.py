@@ -42,6 +42,10 @@ class TestDatabaseHasAttributes(unittest.TestCase):
         """Verifies add_genrecategory exists in database.py"""
         self.assertDatabaseHasAttribute('add_genrecategory')
 
+    def test_add_condition_function_is_defined(self):
+        """Verifies add_condition exists in database.py"""
+        self.assertDatabaseHasAttribute('add_condition')
+
     def assertDatabaseHasAttribute(self, attr: str):
         """Helper function that asserts attr is in database.py"""
         self.assertTrue(
@@ -263,6 +267,12 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             database.add_genrecategory, [(None, )], 'GenresCategories'
         )
 
+    def test_condition_table_not_null_constraints(self):
+        """Test not null constraints in Conditions table."""
+        self.assertAddRecordNotNullColumnConstraints(
+            database.add_condition, [(None, 'Hello')], 'Conditions'
+        )
+
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
         """Asserts """
         for params in params_list:
@@ -302,7 +312,18 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
     def test_add_genrecategory_creates_valid_record(self):
         """Verifies add_genrecategory() creates a valid record"""
         self.assertAddRecordFunction(
-            database.add_genrecategory, [('NAME', ), ('name', )], "GenresCategories"
+            database.add_genrecategory, [('NAME', ), ('name', )], 'GenresCategories'
+        )
+
+    def test_add_condition_creates_valid_record(self):
+        """Verifies add_condition() creates a valid record."""
+        self.assertAddRecordFunction(
+            database.add_condition,
+            [
+                ('NAME', 'DESCRIPTION'),
+                ('name', None),
+            ],
+            'Conditions'
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
