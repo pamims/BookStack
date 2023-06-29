@@ -27,7 +27,7 @@ def create_database(filename):
     cursor.execute('''
         CREATE TABLE GenresCategories (
             ID INTEGER PRIMARY KEY,
-            Name TEXT
+            Name TEXT NOT NULL
         )
     ''')
 
@@ -89,6 +89,15 @@ def add_publisher(filename: str, name: str):
     params = (name, )
     query = """
             INSERT INTO Publishers (Name)
+            VALUES (?)
+            """
+    __perform_query(filename, query, params)
+
+
+def add_genrecategory(filename: str, name: str):
+    params = (name, )
+    query = """
+            INSERT INTO GenresCategories (Name)
             VALUES (?)
             """
     __perform_query(filename, query, params)
