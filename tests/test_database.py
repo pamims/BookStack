@@ -42,6 +42,10 @@ class TestDatabaseHasAttributes(unittest.TestCase):
         """Verifies add_genrecategory exists in database.py"""
         self.assertDatabaseHasAttribute('add_genrecategory')
 
+    def test_add_condition_function_is_defined(self):
+        """Verifies add_condition exists in database.py"""
+        self.assertDatabaseHasAttribute('add_condition')
+
     def assertDatabaseHasAttribute(self, attr: str):
         """Helper function that asserts attr is in database.py"""
         self.assertTrue(
@@ -263,8 +267,14 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             database.add_genrecategory, [(None, )], 'GenresCategories'
         )
 
+    def test_condition_table_not_null_constraints(self):
+        """Test not null constraints in Conditions table."""
+        self.assertAddRecordNotNullColumnConstraints(
+            database.add_condition, [(None, 'Hello')], 'Conditions'
+        )
+
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
-        """Asserts """
+        """Asserts NOT NULL constraint detected when adding record."""
         for params in params_list:
 
             args = (DB_PATH, ) + params
@@ -282,7 +292,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
 class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
     """Testcase for verifying records inserted into tables properly."""
     def test_add_author_creates_valid_record(self):
-        """Verifies add_author() creates a valid record"""
+        """Verifies add_author() creates a valid record."""
         self.assertAddRecordFunction(
             database.add_author,
             [
@@ -294,18 +304,30 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
         )
 
     def test_add_publisher_creates_valid_record(self):
-        """Verifies add_publisher() creates a valid record"""
+        """Verifies add_publisher() creates a valid record."""
         self.assertAddRecordFunction(
             database.add_publisher, [('NAME', ), ('name', )], 'Publishers'
         )
 
     def test_add_genrecategory_creates_valid_record(self):
-        """Verifies add_genrecategory() creates a valid record"""
+        """Verifies add_genrecategory() creates a valid record."""
         self.assertAddRecordFunction(
-            database.add_genrecategory, [('NAME', ), ('name', )], "GenresCategories"
+            database.add_genrecategory, [('NAME', ), ('name', )], 'GenresCategories'
+        )
+
+    def test_add_condition_creates_valid_record(self):
+        """Verifies add_condition() creates a valid record."""
+        self.assertAddRecordFunction(
+            database.add_condition,
+            [
+                ('NAME', 'DESCRIPTION'),
+                ('name', None),
+            ],
+            'Conditions'
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
+        """Asserts records are added to database."""
         for params in params_list:
             args = (DB_PATH, ) + params
             func(*args)
