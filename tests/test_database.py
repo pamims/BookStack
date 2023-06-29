@@ -38,6 +38,10 @@ class TestDatabaseHasAttributes(unittest.TestCase):
         """Verifies add_publisher exists in database.py"""
         self.assertDatabaseHasAttribute('add_publisher')
 
+    def test_add_genrecategory_function_is_defined(self):
+        """Verifies add_genrecategory exists in database.py"""
+        self.assertDatabaseHasAttribute('add_genrecategory')
+
     def assertDatabaseHasAttribute(self, attr: str):
         """Helper function that asserts attr is in database.py"""
         self.assertTrue(
@@ -253,6 +257,12 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             database.add_publisher, [(None, )], 'Publishers'
         )
 
+    def test_genrecategory_table_not_null_constraints(self):
+        """Test not null constraints in GenresCategories table."""
+        self.assertAddRecordNotNullColumnConstraints(
+            database.add_genrecategory, [(None, )], 'GenresCategories'
+        )
+
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
         """Asserts """
         for params in params_list:
@@ -270,6 +280,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
 
 
 class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
+    """Testcase for verifying records inserted into tables properly."""
     def test_add_author_creates_valid_record(self):
         """Verifies add_author() creates a valid record"""
         self.assertAddRecordFunction(
@@ -286,6 +297,12 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
         """Verifies add_publisher() creates a valid record"""
         self.assertAddRecordFunction(
             database.add_publisher, [('NAME', ), ('name', )], 'Publishers'
+        )
+
+    def test_add_genrecategory_creates_valid_record(self):
+        """Verifies add_genrecategory() creates a valid record"""
+        self.assertAddRecordFunction(
+            database.add_genrecategory, [('NAME', ), ('name', )], "GenresCategories"
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
