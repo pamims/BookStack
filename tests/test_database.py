@@ -279,7 +279,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
 
     def test_location_table_not_null_constraints(self):
         self.assertAddRecordNotNullColumnConstraints(
-            database.add_location, [(None, 'Description')]
+            database.add_location, [(None, 'Description')], 'Locations'
         )
 
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
