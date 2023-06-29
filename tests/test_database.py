@@ -302,7 +302,7 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
     def test_add_genrecategory_creates_valid_record(self):
         """Verifies add_genrecategory() creates a valid record"""
         self.assertAddRecordFunction(
-            database.add_genrecategory, [('NAME', ), ('name', )], "GenresCatagories"
+            database.add_genrecategory, [('NAME', ), ('name', )], "GenresCategories"
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
