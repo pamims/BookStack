@@ -274,7 +274,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
         )
 
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
-        """Asserts """
+        """Asserts NOT NULL constraint detected when adding record."""
         for params in params_list:
 
             args = (DB_PATH, ) + params
@@ -292,7 +292,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
 class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
     """Testcase for verifying records inserted into tables properly."""
     def test_add_author_creates_valid_record(self):
-        """Verifies add_author() creates a valid record"""
+        """Verifies add_author() creates a valid record."""
         self.assertAddRecordFunction(
             database.add_author,
             [
@@ -304,13 +304,13 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
         )
 
     def test_add_publisher_creates_valid_record(self):
-        """Verifies add_publisher() creates a valid record"""
+        """Verifies add_publisher() creates a valid record."""
         self.assertAddRecordFunction(
             database.add_publisher, [('NAME', ), ('name', )], 'Publishers'
         )
 
     def test_add_genrecategory_creates_valid_record(self):
-        """Verifies add_genrecategory() creates a valid record"""
+        """Verifies add_genrecategory() creates a valid record."""
         self.assertAddRecordFunction(
             database.add_genrecategory, [('NAME', ), ('name', )], 'GenresCategories'
         )
@@ -327,6 +327,7 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
         )
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
+        """Asserts records are added to database."""
         for params in params_list:
             args = (DB_PATH, ) + params
             func(*args)
