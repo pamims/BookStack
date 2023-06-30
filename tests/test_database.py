@@ -50,6 +50,10 @@ class TestDatabaseHasAttributes(unittest.TestCase):
         """Verifies add_location exists in database.py"""
         self.assertDatabaseHasAttribute('add_location')
 
+    def test_add_book_function_is_defined(self):
+        """Verifies add_book exists in database.py"""
+        self.assertDatabaseHasAttribute('add_book')
+
     def assertDatabaseHasAttribute(self, attr: str):
         """Helper function that asserts attr is in database.py"""
         self.assertTrue(
@@ -282,6 +286,52 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             database.add_location, [(None, 'Description')], 'Locations'
         )
 
+    def test_book_table_not_null_constraints(self):
+        self.setUpParentTables()
+
+        AuthorID = self.queryForValidRecordID('Authors')
+        PublisherID = self.queryForValidRecordID('Publishers')
+        GenreID = self.queryForValidRecordID('GenresCategories')
+        ConditionID = self.queryForValidRecordID('Conditions')
+        LocationID = self.queryForValidRecordID('Locations')
+
+        YearPublished = 2000
+        Edition = 1
+        DateAcquired = '2020-01-01'
+        Description = 'Description'
+        Price = 9.99
+        isbn = 'ISBN'
+
+        self.assertAddRecordNotNullColumnConstraints(
+            database.add_book,
+            [
+                (None, AuthorID, PublisherID,
+                GenreID, YearPublished, Edition,
+                ConditionID, Description, DateAcquired,
+                Price, LocationID, isbn),
+                ('Title', None, PublisherID,
+                GenreID, YearPublished, Edition,
+                ConditionID, Description, DateAcquired,
+                Price, LocationID, isbn)
+            ],
+            'Books'
+        )
+
+    def setUpParentTables(self):
+        database.add_author(DB_PATH, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
+        database.add_publisher(DB_PATH, "PublisherName")
+        database.add_genrecategory(DB_PATH, "GenreCategoryName")
+        database.add_condition(DB_PATH, "ConditionName", "ConditionDescription")
+        database.add_location(DB_PATH, "LocationName", "LocationDescription")
+
+    def queryForValidRecordID(self, table: str):
+        assert table in DB_REQUIRED_TABLES, f"'{table}' is not a valid table name."
+        self.cursor.execute(f"SELECT ID FROM {table} LIMIT 1")
+        result = self.cursor.fetchone()
+        if result is not None:
+            result = int(result[0])
+        return result
+
     def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
         """Asserts NOT NULL constraint detected when adding record."""
         for params in params_list:
@@ -345,6 +395,50 @@ class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
             ],
             'Locations'
         )
+
+    def test_add_book_creates_valid_record(self):
+        """Verifies add_book() creates a valid record."""
+        self.setUpParentTables()
+
+        AuthorID = self.queryForValidRecordID('Authors')
+        PublisherID = self.queryForValidRecordID('Publishers')
+        GenreID = self.queryForValidRecordID('GenresCategories')
+        ConditionID = self.queryForValidRecordID('Conditions')
+        LocationID = self.queryForValidRecordID('Locations')
+
+        Title = 'Title'
+        YearPublished = 2000
+        Edition = 1
+        DateAcquired = '2020-01-01'
+        Description = 'Description'
+        Price = 9.99
+        isbn = 'ISBN'
+
+        params = (
+            Title, AuthorID, PublisherID,
+            GenreID, YearPublished, Edition,
+            ConditionID, Description, DateAcquired,
+            Price, LocationID, isbn
+        )
+        self.assertAddRecordFunction(
+            database.add_book, [params, params], 'Books'
+        )
+
+    def setUpParentTables(self):
+        database.add_author(DB_PATH, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
+        database.add_publisher(DB_PATH, "PublisherName")
+        database.add_genrecategory(DB_PATH, "GenreCategoryName")
+        database.add_condition(DB_PATH, "ConditionName", "ConditionDescription")
+        database.add_location(DB_PATH, "LocationName", "LocationDescription")
+
+
+    def queryForValidRecordID(self, table: str):
+        assert table in DB_REQUIRED_TABLES, f"'{table}' is not a valid table name."
+        self.cursor.execute(f"SELECT ID FROM {table} LIMIT 1")
+        result = self.cursor.fetchone()
+        if result is not None:
+            result = int(result[0])
+        return result
 
     def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
         """Asserts records are added to database."""
