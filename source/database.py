@@ -58,7 +58,7 @@ def create_database(filename):
             PublisherID     INTEGER NOT NULL,
             GenreID         INTEGER NOT NULL,
             YearPublished   INTEGER,
-            Edition         TEXT,
+            Edition         INTEGER,
             ConditionID     INTEGER NOT NULL,
             Description     TEXT,
             DateAcquired    TEXT,
@@ -115,6 +115,31 @@ def add_location(filename: str, name: str, description: str):
     query = """
             INSERT INTO Locations (Name, Description)
             VALUES (?, ?)
+            """
+    __perform_query(filename, query, params)
+
+def add_book(
+        filename: str, title: str, authorid: int, publisherid: int, genreid: int,
+        yearpublished: str, edition: int, conditionid: int, description: str,
+        dateacquired: str, price: float, locationid: int, isbn: str
+        ):
+    params = (
+        title, authorid, publisherid,
+        genreid, yearpublished, edition,
+        conditionid, description, dateacquired,
+        price, locationid, isbn
+    )
+    query = """
+            INSERT INTO Books (
+                Title, AuthorID, PublisherID,
+                GenreID, YearPublished, Edition,
+                ConditionID, Description, DateAcquired,
+                Price, LocationID, ISBN
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?
+            )
             """
     __perform_query(filename, query, params)
 
