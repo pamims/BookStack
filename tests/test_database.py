@@ -23,6 +23,8 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         ]
     }
 
+    # These are class members because I want to use them in setUpClass and
+    # tearDownClass -- the connection only needs established once per testcase
     connection = None
     cursor = None
 
@@ -35,21 +37,19 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Builds database, establishes connection, and sets cursor."""
-        # print(f"\nsetUpClass() called: {cls.__name__}\n")
+        #print(f"\nsetUpClass() called: {cls.__name__}\n")
         cls.openDatabaseConnection()
 
     @classmethod
     def tearDownClass(cls):
         """Closes database connection and removes test database file."""
-        # print(f"\ntearDownClass() called: {cls.__name__}\n")
+        #print(f"\ntearDownClass() called: {cls.__name__}\n")
         cls.closeDatabaseConnection()
 
     @classmethod
     def openDatabaseConnection(cls) -> None:
         cls.connection = sqlite3.connect(cls.db_path)
         cls.cursor = cls.connection.cursor()
-        if not os.path.exists(cls.db_path):
-            raise FileNotFoundError(f"Database file '{cls.db_path}' not found.")
 
     @classmethod
     def closeDatabaseConnection(cls) -> None:
@@ -64,20 +64,23 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         if os.path.exists(cls.db_path):
             os.remove(cls.db_path)
 
-    def removeAllDatabaseTables(self):
-        user_defined_tables = self.getDatabaseTableNames()
+    @classmethod
+    def removeAllDatabaseTables(cls):
+        user_defined_tables = cls.getDatabaseTableNames()
         for table in user_defined_tables:
             query = f"DROP TABLE IF EXISTS {table}"
-            self.cursor.execute(query)
-        self.connection.commit()
+            cls.cursor.execute(query)
+        cls.connection.commit()
 
-    def validateCursor(self, msg: str = None) -> None:
-        if self.cursor is None:
+    @classmethod
+    def validateCursor(cls, msg: str = None) -> None:
+        if cls.cursor is None:
             if msg is None:
                 msg = "No database connection."
-            raise self.NoDatabaseConnectionError(msg)
+            raise cls.NoDatabaseConnectionError(msg)
 
-    def validateTableName(self, table_name: str, db_schema: Iterable,
+    @classmethod
+    def validateTableName(cls, table_name: str, db_schema: Iterable,
                           msg: str = None) -> None:
         if table_name not in db_schema:
             if msg is None:
@@ -86,49 +89,52 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                     f"Invalid table name: '{table_name}'"
                     f"Valid names include: {valid_list}"
                 )
-            raise self.DatabaseTableError(msg)
+            raise cls.DatabaseTableError(msg)
 
-    def getDatabaseTableNames(self) -> list[str]:
+    @classmethod
+    def getDatabaseTableNames(cls) -> list[str]:
         """Get the table names from the database."""
-        self.validateCursor("Cannot get table names. No database connection.")
-        self.cursor.execute(
+        cls.validateCursor("Cannot get table names. No database connection.")
+        cls.cursor.execute(
             '''
             SELECT name FROM sqlite_master WHERE type='table'
             AND name NOT LIKE 'sqlite_%'
             '''
         )
-        result = self.cursor.fetchall()
+        result = cls.cursor.fetchall()
         table_names = [row[0] for row in result]
         return table_names
 
-    def getTableColumnNames(self, table_name: str) -> list[str]:
+    @classmethod
+    def getTableColumnNames(cls, table_name: str) -> list[str]:
         """Get the column names from a specific table in the database."""
-        valid_list = ', '.join(list(self.db_required_tables))
-        self.validateTableName(
-            table_name, self.db_required_tables,
+        valid_list = ', '.join(list(cls.db_required_tables))
+        cls.validateTableName(
+            table_name, cls.db_required_tables,
             f"Cannot retrieve columns for '{table_name} table.\n"
             f"Valid names include: {valid_list}\n"
             f"Invalid table name: {table_name}\n"
         )
-        table_names = self.getDatabaseTableNames()
+        table_names = cls.getDatabaseTableNames()
         if table_name not in table_names:
             return []
-        self.cursor.execute(f"PRAGMA table_info({table_name})")
-        result = self.cursor.fetchall()
+        cls.cursor.execute(f"PRAGMA table_info({table_name})")
+        result = cls.cursor.fetchall()
         column_names = [row[1] for row in result]
         return column_names
 
-    def getFirstValidRecordID(self, table_name: str):
-        valid_list = ', '.join(list(self.db_required_tables))
-        self.validateTableName(
-            table_name, self.db_required_tables,
+    @classmethod
+    def getFirstValidRecordID(cls, table_name: str):
+        valid_list = ', '.join(list(cls.db_required_tables))
+        cls.validateTableName(
+            table_name, cls.db_required_tables,
             f"Cannot retrieve columns for '{table_name} table.\n"
             f"Valid names include: {valid_list}"
             f"Invalid table name: {table_name}\n"
         )
-        self.validateCursor("Could not get Record ID. No database connection.")
-        self.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID LIMIT 1")
-        result = self.cursor.fetchone()
+        cls.validateCursor("Could not get Record ID. No database connection.")
+        cls.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID LIMIT 1")
+        result = cls.cursor.fetchone()
         if result is not None:
             result = int(result[0])
         return result
