@@ -6,7 +6,7 @@ from typing import Callable, Iterable
 
 
 ### BASE CLASSES ###
-class BaseDatabaseTestCase(unittest.TestCase):
+class BaseDatabaseModuleTestCase(unittest.TestCase):
     """Base test case for all database tests."""
     db_path = 'test_book_stack_database.db'
     db_required_tables = {
@@ -28,6 +28,21 @@ class BaseDatabaseTestCase(unittest.TestCase):
 
     def __init__(self, methodName: str = "runtest") -> None:
         super().__init__(methodName)
+
+    def tearDown(self):
+        self.removeAllDatabaseTables()
+
+    @classmethod
+    def setUpClass(cls):
+        """Builds database, establishes connection, and sets cursor."""
+        # print(f"\nsetUpClass() called: {cls.__name__}\n")
+        cls.openDatabaseConnection()
+
+    @classmethod
+    def tearDownClass(cls):
+        """Closes database connection and removes test database file."""
+        # print(f"\ntearDownClass() called: {cls.__name__}\n")
+        cls.closeDatabaseConnection()
 
     @classmethod
     def openDatabaseConnection(cls) -> None:
@@ -208,33 +223,9 @@ class BaseDatabaseTestCase(unittest.TestCase):
             if error_msg is None:
                 self.fail(msg)
 
-
-class SetUpDatabaseConnectionTestCase(BaseDatabaseTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        """Builds database, establishes connection, and sets cursor."""
-        # print(f"\nsetUpClass() called: {cls.__name__}\n")
-        cls.openDatabaseConnection()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Closes database connection and removes test database file."""
-        # print(f"\ntearDownClass() called: {cls.__name__}\n")
-        cls.closeDatabaseConnection()
-
-class SetUpDatabaseTableSchemaTestCase(SetUpDatabaseConnectionTestCase):
-
-    def setUp(self):
-        raise NotImplementedError("Create table(s) necessary for test case.")
-
-    def tearDown(self):
-        self.removeAllDatabaseTables()
-
-
 ### TEST CASES ###
 
-class TestCreateDatabaseModuleFunction(SetUpDatabaseConnectionTestCase):
+class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
 
     def test_create_database_function(self):
         database.create_database(self.db_path)
@@ -248,7 +239,7 @@ class TestCreateDatabaseModuleFunction(SetUpDatabaseConnectionTestCase):
             "\n\nFAILURE: Database schema is incorrect!"
         )
 
-class TestAuthorsTable(SetUpDatabaseTableSchemaTestCase):
+class TestAuthorsTable(BaseDatabaseModuleTestCase):
     table_name = 'Authors'
 
     def setUp(self):
@@ -277,7 +268,7 @@ class TestAuthorsTable(SetUpDatabaseTableSchemaTestCase):
             self.table_name
         )
 
-class TestPublishersTable(SetUpDatabaseTableSchemaTestCase):
+class TestPublishersTable(BaseDatabaseModuleTestCase):
     table_name = 'Publishers'
 
     def setUp(self):
@@ -295,7 +286,7 @@ class TestPublishersTable(SetUpDatabaseTableSchemaTestCase):
             database.add_publisher, [(None, )], self.table_name
         )
 
-class TestGenresCategoriesTable(SetUpDatabaseTableSchemaTestCase):
+class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
     table_name = 'GenresCategories'
 
     def setUp(self):
@@ -313,7 +304,7 @@ class TestGenresCategoriesTable(SetUpDatabaseTableSchemaTestCase):
             database.add_genrecategory, [(None, )], self.table_name
         )
 
-class TestConditionsTable(SetUpDatabaseTableSchemaTestCase):
+class TestConditionsTable(BaseDatabaseModuleTestCase):
     table_name = 'Conditions'
 
     def setUp(self):
@@ -336,7 +327,7 @@ class TestConditionsTable(SetUpDatabaseTableSchemaTestCase):
             database.add_condition, [(None, 'Hello')], self.table_name
         )
 
-class TestLocationsTable(SetUpDatabaseTableSchemaTestCase):
+class TestLocationsTable(BaseDatabaseModuleTestCase):
     table_name = 'Locations'
 
     def setUp(self):
@@ -358,7 +349,7 @@ class TestLocationsTable(SetUpDatabaseTableSchemaTestCase):
             database.add_location, [(None, 'Description')], self.table_name
         )
 
-class TestBooksTable(SetUpDatabaseTableSchemaTestCase):
+class TestBooksTable(BaseDatabaseModuleTestCase):
     table_name = 'Books'
 
     def setUp(self):
