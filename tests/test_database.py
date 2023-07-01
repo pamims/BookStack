@@ -28,8 +28,8 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     connection = None
     cursor = None
 
-    def __init__(self, methodName: str = "runtest") -> None:
-        super().__init__(methodName)
+    # def __init__(self, methodName: str = "runtest") -> None:
+    #     super().__init__(methodName)
 
     def tearDown(self):
         self.removeAllDatabaseTables()
