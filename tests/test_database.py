@@ -314,19 +314,16 @@ class TestCreateDatabaseModuleFunction(SetUpDatabaseConnectionTestCase):
         self.assertModuleHasAttribute(database, 'create_database')
 
     def test_create_database_function(self):
-        print("\nNEED TO MAKE THIS FUNCTION - test_create_database_function\n")
-        return
-        assert False, "Need to define this test, bro"
-
-    # I think this is supposed to be merged with above test_create_database_function()
-    # def test_db_tables_match_required_tables(self):
-    #     """Verify only the required tables exist in the database."""
-    #     user_defined_tables = self.getDatabaseTableNames()
-    #     self.assertCountEqual(
-    #         user_defined_tables,
-    #         DB_REQUIRED_TABLES,
-    #         f"Table mismatch: requires {user_defined_tables}, has {DB_REQUIRED_TABLES.keys()}"
-    #     )
+        database.create_database(self.db_path)
+        existing_tables = self.getDatabaseTableNames()
+        db_schema = {}
+        for table_name in existing_tables:
+            column_names = self.getTableColumnNames(table_name)
+            db_schema[table_name] = column_names
+        self.assertDictEqual(
+            self.db_required_tables, db_schema,
+            "\n\nFAILURE: Database schema is incorrect!"
+        )
 
 class TestAuthorsTable(SetUpDatabaseTableSchemaTestCase):
     table_name = 'Authors'
