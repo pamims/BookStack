@@ -147,12 +147,6 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     class DatabaseTableError(DatabaseError):
         pass
 
-    def assertFileExists(self, file_path: str, msg: str = None) -> None:
-        if not os.path.exists(file_path):
-            if msg is None:
-                msg = f"File {file_path} does not exist."
-            self.fail(msg)
-
     def assertCorrectRecordInsertion(
             self, insert_row_func: Callable,
             params_list: list[tuple], table_name: str
