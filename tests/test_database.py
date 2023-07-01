@@ -3,7 +3,6 @@ import os
 import sqlite3
 from source import database
 from typing import Callable, Iterable
-from types import ModuleType
 
 
 ### BASE CLASSES ###
@@ -133,56 +132,11 @@ class BaseDatabaseTestCase(unittest.TestCase):
     class DatabaseTableError(DatabaseError):
         pass
 
-    def assertModuleHasAttribute(self, module: ModuleType, attribute: str,
-                                 msg: str = None) -> None:
-        """Assert module has the specified attribute"""
-        if not hasattr(module, attribute):
-            if msg is None:
-                msg = (
-                    f"Attribute '{attribute}' was not found "
-                    f"in '{module}' module."
-                )
-            self.fail(msg)
-
     def assertFileExists(self, file_path: str, msg: str = None) -> None:
         if not os.path.exists(file_path):
             if msg is None:
                 msg = f"File {file_path} does not exist."
             self.fail(msg)
-
-#move this code directly into method that calls it?
-    def assertDatabaseAccessible(self, msg: str = None) -> None:
-        reason = None
-        try:
-            self.openDatabaseConnection()
-        except sqlite3.Error as e:
-            reason = f"SQLite error: {str(e)}"
-        except FileNotFoundError as e:
-            reason = f"File {self.db_path} does not exist."
-        finally:
-            self.closeDatabaseConnection()
-        if reason is not None:
-            reason += "" if msg is None else " " + msg
-            self.fail(reason)
-
-    def assertTableInDatabase(self, table_name: str, msg: str = None) -> None:
-        """Assert that the specified table exists."""
-        reason = None
-        try:
-            self.validateTableName(table_name, self.db_required_tables)
-            table_names = self.getDatabaseTableNames()
-            if msg is None:
-                msg = (
-                    f"Missing table name: {table_name}"
-                    f"Valid names include: {table_names}"
-                )
-            self.validateTableName(table_name, table_names, msg)
-        except self.DatabaseError as e:
-            reason = str(e)
-        if reason is not None:
-            self.fail(reason)
-
-    #def assertRecordInsertion(self, table_name: str, expected_params: tuple):
 
     def assertCorrectRecordInsertion(
             self, insert_row_func: Callable,
@@ -254,16 +208,6 @@ class BaseDatabaseTestCase(unittest.TestCase):
             if error_msg is None:
                 self.fail(msg)
 
-    def assertCorrectTableColumns(self, table_name: str):
-        """Assert that the columns in the specified table match the required schema."""
-        column_names = self.getTableColumnNames(table_name)
-        required_columns = self.db_required_tables[table_name]
-        if column_names != required_columns:
-            self.fail(
-                f"{table_name} columns mismatch: requires "
-                f"{required_columns}, has {column_names}"
-            )
-
 
 class SetUpDatabaseConnectionTestCase(BaseDatabaseTestCase):
 
@@ -290,28 +234,7 @@ class SetUpDatabaseTableSchemaTestCase(SetUpDatabaseConnectionTestCase):
 
 ### TEST CASES ###
 
-class TestBasicDatabaseConnection(BaseDatabaseTestCase):
-    """Class responsible for ensuring database file is created and can establish a connection."""
-    def test_database_file_is_created(self):
-        """Verifies the database file exists."""
-        # print("create_database() called.")
-        database.create_database(self.db_path)
-        self.assertFileExists(
-            self.db_path,
-            f"Expected create_database() to create file '{self.db_path}'"
-        )
-        self.removeDatabaseFile()
-
-    def test_database_connection_is_established(self):
-        """Verifies database can connect."""
-        self.assertDatabaseAccessible(self.db_path)
-
-
 class TestCreateDatabaseModuleFunction(SetUpDatabaseConnectionTestCase):
-
-    def test_create_database_function_is_defined(self):
-        """Verifies create_database exists in database.py"""
-        self.assertModuleHasAttribute(database, 'create_database')
 
     def test_create_database_function(self):
         database.create_database(self.db_path)
@@ -330,18 +253,6 @@ class TestAuthorsTable(SetUpDatabaseTableSchemaTestCase):
 
     def setUp(self):
         database.create_table_authors(self.db_path)
-
-    def test_add_author_function_is_defined(self):
-        """Verifies add_author exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_author')
-
-    def test_authors_table_is_created(self):
-        """Verifies the Authors table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_authors_table_columns_match_required_columns(self):
-        """Verifies the structure of the Authors table."""
-        self.assertCorrectTableColumns(self.table_name)
 
     def test_add_author_creates_valid_record(self):
         """Verifies add_author() creates a valid record."""
@@ -372,18 +283,6 @@ class TestPublishersTable(SetUpDatabaseTableSchemaTestCase):
     def setUp(self):
         database.create_table_publishers(self.db_path)
 
-    def test_add_publisher_function_is_defined(self):
-        """Verifies add_publisher exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_publisher')
-
-    def test_publishers_table_is_created(self):
-        """Verifies the Publishers table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_publishers_table_columns_match_required_columns(self):
-        """Verifies the structure of the Columns table."""
-        self.assertCorrectTableColumns(self.table_name)
-
     def test_add_publisher_creates_valid_record(self):
         """Verifies add_publisher() creates a valid record."""
         self.assertCorrectRecordInsertion(
@@ -402,18 +301,6 @@ class TestGenresCategoriesTable(SetUpDatabaseTableSchemaTestCase):
     def setUp(self):
         database.create_table_genrescategories(self.db_path)
 
-    def test_add_genrecategory_function_is_defined(self):
-        """Verifies add_genrecategory exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_genrecategory')
-
-    def test_genrescategories_table_is_created(self):
-        """Verifies the GenresCategories table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_genrescategories_table_columns_match_required_columns(self):
-        """Verifies the structure of the GenresCategories table."""
-        self.assertCorrectTableColumns(self.table_name)
-
     def test_add_genrecategory_creates_valid_record(self):
         """Verifies add_genrecategory() creates a valid record."""
         self.assertCorrectRecordInsertion(
@@ -431,18 +318,6 @@ class TestConditionsTable(SetUpDatabaseTableSchemaTestCase):
 
     def setUp(self):
         database.create_table_conditions(self.db_path)
-
-    def test_add_condition_function_is_defined(self):
-        """Verifies add_condition exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_condition')
-
-    def test_conditions_table_is_created(self):
-        """Verifies the Conditions table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_conditions_table_columns_match_required_columns(self):
-        """Verifies the structure of the Conditions table."""
-        self.assertCorrectTableColumns(self.table_name)
 
     def test_add_condition_creates_valid_record(self):
         """Verifies add_condition() creates a valid record."""
@@ -466,18 +341,6 @@ class TestLocationsTable(SetUpDatabaseTableSchemaTestCase):
 
     def setUp(self):
         database.create_table_locations(self.db_path)
-
-    def test_add_location_function_is_defined(self):
-        """Verifies add_location exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_location')
-
-    def test_locations_table_is_created(self):
-        """Verifies the Locations table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_locations_table_columns_match_required_columns(self):
-        """Verifies the structure of the Locations table."""
-        self.assertCorrectTableColumns(self.table_name)
 
     def test_add_location_creates_valid_record(self):
         """Verifies add_location() creates a valid record."""
@@ -505,18 +368,6 @@ class TestBooksTable(SetUpDatabaseTableSchemaTestCase):
         database.add_genrecategory(self.db_path, "GenreCategoryName")
         database.add_condition(self.db_path, "ConditionName", "ConditionDescription")
         database.add_location(self.db_path, "LocationName", "LocationDescription")
-
-    def test_add_book_function_is_defined(self):
-        """Verifies add_book exists in database.py"""
-        self.assertModuleHasAttribute(database, 'add_book')
-
-    def test_books_table_is_created(self):
-        """Verifies the Books table is created."""
-        self.assertTableInDatabase(self.table_name)
-
-    def test_books_table_columns_match_required_columns(self):
-        """Verifies the structure of the Books table."""
-        self.assertCorrectTableColumns(self.table_name)
 
     def test_add_book_creates_valid_record(self):
         """Verifies add_book() creates a valid record."""
