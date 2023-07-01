@@ -2,231 +2,550 @@ import unittest
 import os
 import sqlite3
 from source import database
-from typing import Callable
-
-DB_PATH = 'test_book_stack_database.db'
-DB_REQUIRED_TABLES = {
-            'Authors': ['ID', 'FirstName', 'MiddleName', 'LastName', 'Suffix'],
-            'Publishers': ['ID', 'Name'],
-            'GenresCategories': ['ID', 'Name'],
-            'Conditions': ['ID', 'Name', 'Description'],
-            'Locations': ['ID', 'Name', 'Description'],
-            'Books': [
-                'ID', 'Title', 'AuthorID', 'PublisherID',
-                'GenreID', 'YearPublished', 'Edition',
-                'ConditionID', 'Description', 'DateAcquired',
-                'Price', 'LocationID', 'ISBN'
-                ]
-        }
+from typing import Callable, Iterable
+from types import ModuleType
 
 
+### BASE CLASSES ###
+class BaseDatabaseTestCase(unittest.TestCase):
+    """Base test case for all database tests."""
+    db_path = 'test_book_stack_database.db'
+    db_required_tables = {
+        'Authors': ['ID', 'FirstName', 'MiddleName', 'LastName', 'Suffix'],
+        'Publishers': ['ID', 'Name'],
+        'GenresCategories': ['ID', 'Name'],
+        'Conditions': ['ID', 'Name', 'Description'],
+        'Locations': ['ID', 'Name', 'Description'],
+        'Books': [
+            'ID', 'Title', 'AuthorID', 'PublisherID',
+            'GenreID', 'YearPublished', 'Edition',
+            'ConditionID', 'Description', 'DateAcquired',
+            'Price', 'LocationID', 'ISBN'
+        ]
+    }
 
-# Test Cases
-
-class TestDatabaseHasAttributes(unittest.TestCase):
-    """Verifies all necessary function names, classes, and variables exist in database.py"""
-
-    def test_create_database_function_is_defined(self):
-        """Verifies create_database exists in database.py"""
-        self.assertDatabaseHasAttribute('create_database')
-
-    def test_add_author_function_is_defined(self):
-        """Verifies add_author exists in database.py"""
-        self.assertDatabaseHasAttribute('add_author')
-
-    def test_add_publisher_function_is_defined(self):
-        """Verifies add_publisher exists in database.py"""
-        self.assertDatabaseHasAttribute('add_publisher')
-
-    def test_add_genrecategory_function_is_defined(self):
-        """Verifies add_genrecategory exists in database.py"""
-        self.assertDatabaseHasAttribute('add_genrecategory')
-
-    def test_add_condition_function_is_defined(self):
-        """Verifies add_condition exists in database.py"""
-        self.assertDatabaseHasAttribute('add_condition')
-
-    def test_add_location_function_is_defined(self):
-        """Verifies add_location exists in database.py"""
-        self.assertDatabaseHasAttribute('add_location')
-
-    def test_add_book_function_is_defined(self):
-        """Verifies add_book exists in database.py"""
-        self.assertDatabaseHasAttribute('add_book')
-
-    def assertDatabaseHasAttribute(self, attr: str):
-        """Helper function that asserts attr is in database.py"""
-        self.assertTrue(
-            hasattr(database, attr),
-            f"Attribute '{attr}' not found in database.py"
-        )
-
-
-
-
-class _BaseTestDatabaseCase(unittest.TestCase):
-    """Base class responsible for setup and teardown of tests requiring database file connection."""
     connection = None
     cursor = None
 
-    def setUp(self):
-        """Builds database, establishes connection, and sets cursor."""
-        try:
-            database.create_database(DB_PATH)
-            self.connection = sqlite3.connect(DB_PATH)
-            self.cursor = self.connection.cursor()
-        except:
-            print("Critical error: failed to establish database connection. Continuing tests.")
+    def __init__(self, methodName: str = "runtest") -> None:
+        super().__init__(methodName)
 
-    def tearDown(self):
-        """Closes database connection and removes test database file."""
-        if self.connection is not None:
-            self.connection.close()
-            self.cursor = None
-            self.connection = None
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
+    @classmethod
+    def openDatabaseConnection(cls) -> None:
+        cls.connection = sqlite3.connect(cls.db_path)
+        cls.cursor = cls.connection.cursor()
+        if not os.path.exists(cls.db_path):
+            raise FileNotFoundError(f"Database file '{cls.db_path}' not found.")
 
-    def getUserDefinedTableNames(self):
-        """Get the names of the user-defined tables from a specified table in the database."""
+    @classmethod
+    def closeDatabaseConnection(cls) -> None:
+        if cls.connection is not None:
+            cls.connection.close()
+            cls.connection = None
+            cls.cursor = None
+        cls.removeDatabaseFile()
+
+    @classmethod
+    def removeDatabaseFile(cls):
+        if os.path.exists(cls.db_path):
+            os.remove(cls.db_path)
+
+    def removeAllDatabaseTables(self):
+        user_defined_tables = self.getDatabaseTableNames()
+        for table in user_defined_tables:
+            query = f"DROP TABLE IF EXISTS {table}"
+            self.cursor.execute(query)
+        self.connection.commit()
+
+    def validateCursor(self, msg: str = None) -> None:
+        if self.cursor is None:
+            if msg is None:
+                msg = "No database connection."
+            raise self.NoDatabaseConnectionError(msg)
+
+    def validateTableName(self, table_name: str, db_schema: Iterable,
+                          msg: str = None) -> None:
+        if table_name not in db_schema:
+            if msg is None:
+                valid_list = ', '.join(list(db_schema))
+                msg = (
+                    f"Invalid table name: '{table_name}'"
+                    f"Valid names include: {valid_list}"
+                )
+            raise self.DatabaseTableError(msg)
+
+    def getDatabaseTableNames(self) -> list[str]:
+        """Get the table names from the database."""
+        self.validateCursor("Cannot get table names. No database connection.")
         self.cursor.execute(
             '''
             SELECT name FROM sqlite_master WHERE type='table'
             AND name NOT LIKE 'sqlite_%'
             '''
         )
-        user_defined_tables = self.cursor.fetchall()
-        user_defined_tables = [row[0] for row in user_defined_tables]
-        return user_defined_tables
+        result = self.cursor.fetchall()
+        table_names = [row[0] for row in result]
+        return table_names
+
+    def getTableColumnNames(self, table_name: str) -> list[str]:
+        """Get the column names from a specific table in the database."""
+        valid_list = ', '.join(list(self.db_required_tables))
+        self.validateTableName(
+            table_name, self.db_required_tables,
+            f"Cannot retrieve columns for '{table_name} table.\n"
+            f"Valid names include: {valid_list}\n"
+            f"Invalid table name: {table_name}\n"
+        )
+        table_names = self.getDatabaseTableNames()
+        if table_name not in table_names:
+            return []
+        self.cursor.execute(f"PRAGMA table_info({table_name})")
+        result = self.cursor.fetchall()
+        column_names = [row[1] for row in result]
+        return column_names
+
+    def getFirstValidRecordID(self, table_name: str):
+        valid_list = ', '.join(list(self.db_required_tables))
+        self.validateTableName(
+            table_name, self.db_required_tables,
+            f"Cannot retrieve columns for '{table_name} table.\n"
+            f"Valid names include: {valid_list}"
+            f"Invalid table name: {table_name}\n"
+        )
+        self.validateCursor("Could not get Record ID. No database connection.")
+        self.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID LIMIT 1")
+        result = self.cursor.fetchone()
+        if result is not None:
+            result = int(result[0])
+        return result
+
+    class DatabaseError(Exception):
+        def __init__(self, msg: str = None):
+            super().__init__(msg)
+        def __str__(self):
+            msg = super().args[0]
+            name = type(self).__name__
+            msg = name + f": {msg}" if type(msg) is str else ""
+            return msg
+
+    class NoDatabaseConnectionError(DatabaseError):
+        pass
+    class DatabaseTableError(DatabaseError):
+        pass
+
+    def assertModuleHasAttribute(self, module: ModuleType, attribute: str,
+                                 msg: str = None) -> None:
+        """Assert module has the specified attribute"""
+        if not hasattr(module, attribute):
+            if msg is None:
+                msg = (
+                    f"Attribute '{attribute}' was not found "
+                    f"in '{module}' module."
+                )
+            self.fail(msg)
+
+    def assertFileExists(self, file_path: str, msg: str = None) -> None:
+        if not os.path.exists(file_path):
+            if msg is None:
+                msg = f"File {file_path} does not exist."
+            self.fail(msg)
+
+#move this code directly into method that calls it?
+    def assertDatabaseAccessible(self, msg: str = None) -> None:
+        reason = None
+        try:
+            self.openDatabaseConnection()
+        except sqlite3.Error as e:
+            reason = f"SQLite error: {str(e)}"
+        except FileNotFoundError as e:
+            reason = f"File {self.db_path} does not exist."
+        finally:
+            self.closeDatabaseConnection()
+        if reason is not None:
+            reason += "" if msg is None else " " + msg
+            self.fail(reason)
+
+    def assertTableInDatabase(self, table_name: str, msg: str = None) -> None:
+        """Assert that the specified table exists."""
+        reason = None
+        try:
+            self.validateTableName(table_name, self.db_required_tables)
+            table_names = self.getDatabaseTableNames()
+            if msg is None:
+                msg = (
+                    f"Missing table name: {table_name}"
+                    f"Valid names include: {table_names}"
+                )
+            self.validateTableName(table_name, table_names, msg)
+        except self.DatabaseError as e:
+            reason = str(e)
+        if reason is not None:
+            self.fail(reason)
+
+    #def assertRecordInsertion(self, table_name: str, expected_params: tuple):
+
+    def assertCorrectRecordInsertion(
+            self, insert_row_func: Callable,
+            params_list: list[tuple], table_name: str
+    ) -> None:
+        """Asserts correct table insertion, including ID AUTOINCREMENT."""
+        for params in params_list:
+            args = (self.db_path, ) + params
+            try:
+                insert_row_func(*args)
+            except Exception as e:
+                self.fail(f"Error during '{table_name}' insertion: {str(e)}")
+
+        self.validateTableName(table_name, self.db_required_tables)
+        self.validateCursor()
+        self.cursor.execute(f"SELECT * FROM {table_name}")
+
+        id = 0
+        for params in params_list:
+            id += 1 # sqlite database autoincrement id's start at 1
+            expected_record = (id, ) + params
+            record = self.cursor.fetchone()
+            if record is None:
+                self.fail(f"No record found in the '{table_name}' table.")
+            num_fields = len(record)
+            num_expected = len(expected_record)
+            mismatch = set(record).symmetric_difference(set(expected_record))
+            if num_fields != num_expected:
+                self.fail(
+                    f"Number of fields mismatch. Expected {num_expected}, "
+                    f"Received {num_fields}. Mismatched items: {mismatch}"
+                )
+            if record != expected_record:
+                self.fail(
+                    f"Expected: {expected_record}, Received {record}. "
+                    f"Mismatched items: {mismatch}"
+                )
+
+    def assertNotNullTableConstraints(
+            self, insert_row_func: Callable,
+            params_list: list[tuple], table_name: str
+    ) -> None:
+        """Asserts NOT NULL constraint detected when adding record."""
+        # get the list of the column names
+        try:
+            column_names = self.getTableColumnNames(table_name)
+        except self.DatabaseError as e:
+            self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
+        for params in params_list:
+            # make sure only one None is in the parameters
+            assert params.count(None), (
+                "To check NOT NULL constraints properly, every parameter "
+                "list must contain None exactly once. The particular "
+                "value being tested should be set to None."
+            )
+            # get the name of the column being tested
+            column_tested = column_names[params.index(None)]
+            # get the args to send to the insert_row_func
+            args = (self.db_path, ) + params
+            # generate the failure message
+            msg = f"{table_name} {column_tested} NOT NULL constraint fails."
+            error_msg = None
+            try:
+                insert_row_func(*args)
+            except sqlite3.IntegrityError as e:
+                error_msg = str(e)
+                if "NOT NULL constraint failed" not in error_msg:
+                    self.fail(msg)
+            if error_msg is None:
+                self.fail(msg)
+
+    def assertCorrectTableColumns(self, table_name: str):
+        """Assert that the columns in the specified table match the required schema."""
+        column_names = self.getTableColumnNames(table_name)
+        required_columns = self.db_required_tables[table_name]
+        if column_names != required_columns:
+            self.fail(
+                f"{table_name} columns mismatch: requires "
+                f"{required_columns}, has {column_names}"
+            )
 
 
+class SetUpDatabaseConnectionTestCase(BaseDatabaseTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Builds database, establishes connection, and sets cursor."""
+        # print(f"\nsetUpClass() called: {cls.__name__}\n")
+        cls.openDatabaseConnection()
+
+    @classmethod
+    def tearDownClass(cls):
+        """Closes database connection and removes test database file."""
+        # print(f"\ntearDownClass() called: {cls.__name__}\n")
+        cls.closeDatabaseConnection()
+
+class SetUpDatabaseTableSchemaTestCase(SetUpDatabaseConnectionTestCase):
+
+    def setUp(self):
+        raise NotImplementedError("Create table(s) necessary for test case.")
+
+    def tearDown(self):
+        self.removeAllDatabaseTables()
 
 
-class TestDatabaseFileConnection(_BaseTestDatabaseCase):
+### TEST CASES ###
+
+class TestBasicDatabaseConnection(BaseDatabaseTestCase):
     """Class responsible for ensuring database file is created and can establish a connection."""
-
     def test_database_file_is_created(self):
         """Verifies the database file exists."""
-        self.assertTrue(
-            os.path.exists(DB_PATH),
-            f"File {DB_PATH} was not created."
+        # print("create_database() called.")
+        database.create_database(self.db_path)
+        self.assertFileExists(
+            self.db_path,
+            f"Expected create_database() to create file '{self.db_path}'"
         )
+        self.removeDatabaseFile()
 
     def test_database_connection_is_established(self):
         """Verifies database can connect."""
-        try:
-            connection = sqlite3.connect(DB_PATH)
-            cursor = connection.cursor()
-            cursor.close()
-            connection.close()
-        except sqlite3.Error as e:
-            self.fail(f"SQLite error: {str(e)}")
+        self.assertDatabaseAccessible(self.db_path)
 
 
+class TestCreateDatabaseModuleFunction(SetUpDatabaseConnectionTestCase):
 
-class TestDatabaseTableCreation(_BaseTestDatabaseCase):
-    """TestCase for verifying proper database construction."""
+    def test_create_database_function_is_defined(self):
+        """Verifies create_database exists in database.py"""
+        self.assertModuleHasAttribute(database, 'create_database')
 
-    def test_db_tables_match_required_tables(self):
-        """Verify only the required tables exist in the database."""
-        user_defined_tables = self.getUserDefinedTableNames()
-        self.assertCountEqual(
-            user_defined_tables,
-            DB_REQUIRED_TABLES,
-            f"Table mismatch: requires {user_defined_tables}, has {DB_REQUIRED_TABLES.keys()}"
-        )
+    def test_create_database_function(self):
+        print("\nNEED TO MAKE THIS FUNCTION - test_create_database_function\n")
+        return
+        assert False, "Need to define this test, bro"
+
+    # I think this is supposed to be merged with above test_create_database_function()
+    # def test_db_tables_match_required_tables(self):
+    #     """Verify only the required tables exist in the database."""
+    #     user_defined_tables = self.getDatabaseTableNames()
+    #     self.assertCountEqual(
+    #         user_defined_tables,
+    #         DB_REQUIRED_TABLES,
+    #         f"Table mismatch: requires {user_defined_tables}, has {DB_REQUIRED_TABLES.keys()}"
+    #     )
+
+class TestAuthorsTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'Authors'
+
+    def setUp(self):
+        database.create_table_authors(self.db_path)
+
+    def test_add_author_function_is_defined(self):
+        """Verifies add_author exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_author')
 
     def test_authors_table_is_created(self):
         """Verifies the Authors table is created."""
-        self.assertTableExists('Authors')
-
-    def test_publishers_table_is_created(self):
-        """Verifies the Publishers table is created."""
-        self.assertTableExists('Publishers')
-
-    def test_genrescategories_table_is_created(self):
-        """Verifies the GenresCategories table is created."""
-        self.assertTableExists('GenresCategories')
-
-    def test_conditions_table_is_created(self):
-        """Verifies the Conditions table is created."""
-        self.assertTableExists('Conditions')
-
-    def test_locations_table_is_created(self):
-        """Verifies the Locations table is created."""
-        self.assertTableExists('Locations')
-
-    def test_books_table_is_created(self):
-        """Verifies the Books table is created."""
-        self.assertTableExists('Books')
-
-    def assertTableExists(self, table: str):
-        """Assert that the specified table exists."""
-        assert table in DB_REQUIRED_TABLES, f"{table} not found in required tables definition"
-        tables = self.getUserDefinedTableNames()
-        self.assertIn(
-            table, tables,
-            f"Expected '{table}' table in required tables. Table not found."
-        )
-
-
-
-
-class TestDatabaseTableColumnCreation(_BaseTestDatabaseCase):
-    """TestCase for verifying proper database construction."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_authors_table_columns_match_required_columns(self):
         """Verifies the structure of the Authors table."""
-        self.assertTableColumnsMatchRequiredColumns('Authors')
+        self.assertCorrectTableColumns(self.table_name)
+
+    def test_add_author_creates_valid_record(self):
+        """Verifies add_author() creates a valid record."""
+        self.assertCorrectRecordInsertion(
+            database.add_author,
+            [
+                ('FIRST', 'M', 'LAST', 'SUFFIX'),
+                ('first', 'm', 'last', 'suffix'),
+                ('Bob', None, 'Anderson', None)
+            ],
+            self.table_name
+        )
+
+    def test_author_table_not_null_constraints(self):
+        """Test not null constraints in Authors table."""
+        self.assertNotNullTableConstraints(
+            database.add_author,
+            [
+                (None, 'MiddleName', 'LastName', 'Suffix'),
+                ('FirstName', 'MiddleName', None, 'Suffix')
+            ],
+            self.table_name
+        )
+
+class TestPublishersTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'Publishers'
+
+    def setUp(self):
+        database.create_table_publishers(self.db_path)
+
+    def test_add_publisher_function_is_defined(self):
+        """Verifies add_publisher exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_publisher')
+
+    def test_publishers_table_is_created(self):
+        """Verifies the Publishers table is created."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_publishers_table_columns_match_required_columns(self):
         """Verifies the structure of the Columns table."""
-        self.assertTableColumnsMatchRequiredColumns('Publishers')
+        self.assertCorrectTableColumns(self.table_name)
+
+    def test_add_publisher_creates_valid_record(self):
+        """Verifies add_publisher() creates a valid record."""
+        self.assertCorrectRecordInsertion(
+            database.add_publisher, [('NAME', ), ('name', )], self.table_name
+        )
+
+    def test_publisher_table_not_null_constraints(self):
+        """Test not null constraints in Publishers table."""
+        self.assertNotNullTableConstraints(
+            database.add_publisher, [(None, )], self.table_name
+        )
+
+class TestGenresCategoriesTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'GenresCategories'
+
+    def setUp(self):
+        database.create_table_genrescategories(self.db_path)
+
+    def test_add_genrecategory_function_is_defined(self):
+        """Verifies add_genrecategory exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_genrecategory')
+
+    def test_genrescategories_table_is_created(self):
+        """Verifies the GenresCategories table is created."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_genrescategories_table_columns_match_required_columns(self):
         """Verifies the structure of the GenresCategories table."""
-        self.assertTableColumnsMatchRequiredColumns('GenresCategories')
+        self.assertCorrectTableColumns(self.table_name)
+
+    def test_add_genrecategory_creates_valid_record(self):
+        """Verifies add_genrecategory() creates a valid record."""
+        self.assertCorrectRecordInsertion(
+            database.add_genrecategory, [('NAME', ), ('name', )], self.table_name
+        )
+
+    def test_genrecategory_table_not_null_constraints(self):
+        """Test not null constraints in GenresCategories table."""
+        self.assertNotNullTableConstraints(
+            database.add_genrecategory, [(None, )], self.table_name
+        )
+
+class TestConditionsTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'Conditions'
+
+    def setUp(self):
+        database.create_table_conditions(self.db_path)
+
+    def test_add_condition_function_is_defined(self):
+        """Verifies add_condition exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_condition')
+
+    def test_conditions_table_is_created(self):
+        """Verifies the Conditions table is created."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_conditions_table_columns_match_required_columns(self):
         """Verifies the structure of the Conditions table."""
-        self.assertTableColumnsMatchRequiredColumns('Conditions')
+        self.assertCorrectTableColumns(self.table_name)
+
+    def test_add_condition_creates_valid_record(self):
+        """Verifies add_condition() creates a valid record."""
+        self.assertCorrectRecordInsertion(
+            database.add_condition,
+            [
+                ('NAME', 'DESCRIPTION'),
+                ('name', None),
+            ],
+            self.table_name
+        )
+
+    def test_condition_table_not_null_constraints(self):
+        """Test not null constraints in Conditions table."""
+        self.assertNotNullTableConstraints(
+            database.add_condition, [(None, 'Hello')], self.table_name
+        )
+
+class TestLocationsTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'Locations'
+
+    def setUp(self):
+        database.create_table_locations(self.db_path)
+
+    def test_add_location_function_is_defined(self):
+        """Verifies add_location exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_location')
+
+    def test_locations_table_is_created(self):
+        """Verifies the Locations table is created."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_locations_table_columns_match_required_columns(self):
         """Verifies the structure of the Locations table."""
-        self.assertTableColumnsMatchRequiredColumns('Locations')
+        self.assertCorrectTableColumns(self.table_name)
+
+    def test_add_location_creates_valid_record(self):
+        """Verifies add_location() creates a valid record."""
+        self.assertCorrectRecordInsertion(
+            database.add_location,
+            [
+                ('NAME', 'DESCRIPTION'),
+                ('name', None)
+            ],
+            self.table_name
+        )
+
+    def test_location_table_not_null_constraints(self):
+        self.assertNotNullTableConstraints(
+            database.add_location, [(None, 'Description')], self.table_name
+        )
+
+class TestBooksTable(SetUpDatabaseTableSchemaTestCase):
+    table_name = 'Books'
+
+    def setUp(self):
+        database.create_database(self.db_path)
+        database.add_author(self.db_path, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
+        database.add_publisher(self.db_path, "PublisherName")
+        database.add_genrecategory(self.db_path, "GenreCategoryName")
+        database.add_condition(self.db_path, "ConditionName", "ConditionDescription")
+        database.add_location(self.db_path, "LocationName", "LocationDescription")
+
+    def test_add_book_function_is_defined(self):
+        """Verifies add_book exists in database.py"""
+        self.assertModuleHasAttribute(database, 'add_book')
+
+    def test_books_table_is_created(self):
+        """Verifies the Books table is created."""
+        self.assertTableInDatabase(self.table_name)
 
     def test_books_table_columns_match_required_columns(self):
         """Verifies the structure of the Books table."""
-        self.assertTableColumnsMatchRequiredColumns('Books')
+        self.assertCorrectTableColumns(self.table_name)
 
-    def assertTableColumnsMatchRequiredColumns(self, table: str):
-        """Assert that the columns in the specified table match the required schema."""
-        assert table in DB_REQUIRED_TABLES, f"{table} not found in required tables definition"
-        columns = self.getColumnNamesFromTable(table)
-        required_columns = DB_REQUIRED_TABLES[table]
-        self.assertEqual(
-            columns,
-            required_columns,
-            f"{table} columns mismatch: requires {required_columns}, has {columns}"
+    def test_add_book_creates_valid_record(self):
+        """Verifies add_book() creates a valid record."""
+        AuthorID = self.getFirstValidRecordID('Authors')
+        PublisherID = self.getFirstValidRecordID('Publishers')
+        GenreID = self.getFirstValidRecordID('GenresCategories')
+        ConditionID = self.getFirstValidRecordID('Conditions')
+        LocationID = self.getFirstValidRecordID('Locations')
+
+        Title = 'Title'
+        YearPublished = 2000
+        Edition = 1
+        DateAcquired = '2020-01-01'
+        Description = 'Description'
+        Price = 9.99
+        isbn = 'ISBN'
+
+        params = (
+            Title, AuthorID, PublisherID,
+            GenreID, YearPublished, Edition,
+            ConditionID, Description, DateAcquired,
+            Price, LocationID, isbn
         )
-
-    def getColumnNamesFromTable(self, table: str):
-        """Get the names of the columns from a specified table in the database."""
-        assert table in DB_REQUIRED_TABLES, f"{table} not found in required tables definition"
-        tables = self.getUserDefinedTableNames()
-        if table in tables:
-            self.cursor.execute(f"PRAGMA table_info({table})")
-            column_definitions = self.cursor.fetchall()
-            columns = [column[1] for column in column_definitions]
-        else:
-            columns = []
-        return columns
-
-
-
-
-class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
-    """TestCase for verifying proper database construction."""
+        self.assertCorrectRecordInsertion(
+            database.add_book, [params, params], self.table_name
+        )
 
     def test_books_table_foreign_key_constraints(self):
         """Test foreign key constraints in Books table."""
@@ -252,48 +571,13 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
             "AuthorID, PublisherID, GenreID, ConditionID, and LocationID should have FOREIGN KEY constraints"
         )
 
-    def test_author_table_not_null_constraints(self):
-        """Test not null constraints in Authors table."""
-        self.assertAddRecordNotNullColumnConstraints(
-            database.add_author,
-            [
-                (None, 'MiddleName', 'LastName', 'Suffix'),
-                ('FirstName', 'MiddleName', None, 'Suffix')
-            ],
-            'Authors'
-        )
-
-    def test_publisher_table_not_null_constraints(self):
-        """Test not null constraints in Publishers table."""
-        self.assertAddRecordNotNullColumnConstraints(
-            database.add_publisher, [(None, )], 'Publishers'
-        )
-
-    def test_genrecategory_table_not_null_constraints(self):
-        """Test not null constraints in GenresCategories table."""
-        self.assertAddRecordNotNullColumnConstraints(
-            database.add_genrecategory, [(None, )], 'GenresCategories'
-        )
-
-    def test_condition_table_not_null_constraints(self):
-        """Test not null constraints in Conditions table."""
-        self.assertAddRecordNotNullColumnConstraints(
-            database.add_condition, [(None, 'Hello')], 'Conditions'
-        )
-
-    def test_location_table_not_null_constraints(self):
-        self.assertAddRecordNotNullColumnConstraints(
-            database.add_location, [(None, 'Description')], 'Locations'
-        )
-
     def test_book_table_not_null_constraints(self):
-        self.setUpParentTables()
 
-        AuthorID = self.queryForValidRecordID('Authors')
-        PublisherID = self.queryForValidRecordID('Publishers')
-        GenreID = self.queryForValidRecordID('GenresCategories')
-        ConditionID = self.queryForValidRecordID('Conditions')
-        LocationID = self.queryForValidRecordID('Locations')
+        AuthorID = self.getFirstValidRecordID('Authors')
+        PublisherID = self.getFirstValidRecordID('Publishers')
+        GenreID = self.getFirstValidRecordID('GenresCategories')
+        ConditionID = self.getFirstValidRecordID('Conditions')
+        LocationID = self.getFirstValidRecordID('Locations')
 
         YearPublished = 2000
         Edition = 1
@@ -302,7 +586,7 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
         Price = 9.99
         isbn = 'ISBN'
 
-        self.assertAddRecordNotNullColumnConstraints(
+        self.assertNotNullTableConstraints(
             database.add_book,
             [
                 (None, AuthorID, PublisherID,
@@ -314,162 +598,9 @@ class TestDatabaseConstraintFunctionality(_BaseTestDatabaseCase):
                 ConditionID, Description, DateAcquired,
                 Price, LocationID, isbn)
             ],
-            'Books'
+            self.table_name
         )
 
-    def setUpParentTables(self):
-        database.add_author(DB_PATH, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
-        database.add_publisher(DB_PATH, "PublisherName")
-        database.add_genrecategory(DB_PATH, "GenreCategoryName")
-        database.add_condition(DB_PATH, "ConditionName", "ConditionDescription")
-        database.add_location(DB_PATH, "LocationName", "LocationDescription")
-
-    def queryForValidRecordID(self, table: str):
-        assert table in DB_REQUIRED_TABLES, f"'{table}' is not a valid table name."
-        self.cursor.execute(f"SELECT ID FROM {table} LIMIT 1")
-        result = self.cursor.fetchone()
-        if result is not None:
-            result = int(result[0])
-        return result
-
-    def assertAddRecordNotNullColumnConstraints(self, func: Callable, params_list: list, table: str):
-        """Asserts NOT NULL constraint detected when adding record."""
-        for params in params_list:
-
-            args = (DB_PATH, ) + params
-            index = next((i for (i, value) in enumerate(params) if value is None), None)
-            message = f"Element index {index} in '{table}' row should have NOT NULL constraint: {params}"
-
-            with self.assertRaises(sqlite3.IntegrityError, msg = message) as context:
-                func(*args)
-            error_message = str(context.exception)
-            self.assertIn("NOT NULL constraint failed", error_message, message)
-
-
-
-
-class TestDatabaseInsertionFunctionality(_BaseTestDatabaseCase):
-    """Testcase for verifying records inserted into tables properly."""
-    def test_add_author_creates_valid_record(self):
-        """Verifies add_author() creates a valid record."""
-        self.assertAddRecordFunction(
-            database.add_author,
-            [
-                ('FIRST', 'M', 'LAST', 'SUFFIX'),
-                ('first', 'm', 'last', 'suffix'),
-                ('Bob', None, 'Anderson', None)
-            ],
-            'Authors'
-        )
-
-    def test_add_publisher_creates_valid_record(self):
-        """Verifies add_publisher() creates a valid record."""
-        self.assertAddRecordFunction(
-            database.add_publisher, [('NAME', ), ('name', )], 'Publishers'
-        )
-
-    def test_add_genrecategory_creates_valid_record(self):
-        """Verifies add_genrecategory() creates a valid record."""
-        self.assertAddRecordFunction(
-            database.add_genrecategory, [('NAME', ), ('name', )], 'GenresCategories'
-        )
-
-    def test_add_condition_creates_valid_record(self):
-        """Verifies add_condition() creates a valid record."""
-        self.assertAddRecordFunction(
-            database.add_condition,
-            [
-                ('NAME', 'DESCRIPTION'),
-                ('name', None),
-            ],
-            'Conditions'
-        )
-
-    def test_add_location_creates_valid_record(self):
-        """Verifies add_location() creates a valid record."""
-        self.assertAddRecordFunction(
-            database.add_location,
-            [
-                ('NAME', 'DESCRIPTION'),
-                ('name', None)
-            ],
-            'Locations'
-        )
-
-    def test_add_book_creates_valid_record(self):
-        """Verifies add_book() creates a valid record."""
-        self.setUpParentTables()
-
-        AuthorID = self.queryForValidRecordID('Authors')
-        PublisherID = self.queryForValidRecordID('Publishers')
-        GenreID = self.queryForValidRecordID('GenresCategories')
-        ConditionID = self.queryForValidRecordID('Conditions')
-        LocationID = self.queryForValidRecordID('Locations')
-
-        Title = 'Title'
-        YearPublished = 2000
-        Edition = 1
-        DateAcquired = '2020-01-01'
-        Description = 'Description'
-        Price = 9.99
-        isbn = 'ISBN'
-
-        params = (
-            Title, AuthorID, PublisherID,
-            GenreID, YearPublished, Edition,
-            ConditionID, Description, DateAcquired,
-            Price, LocationID, isbn
-        )
-        self.assertAddRecordFunction(
-            database.add_book, [params, params], 'Books'
-        )
-
-    def setUpParentTables(self):
-        database.add_author(DB_PATH, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
-        database.add_publisher(DB_PATH, "PublisherName")
-        database.add_genrecategory(DB_PATH, "GenreCategoryName")
-        database.add_condition(DB_PATH, "ConditionName", "ConditionDescription")
-        database.add_location(DB_PATH, "LocationName", "LocationDescription")
-
-
-    def queryForValidRecordID(self, table: str):
-        assert table in DB_REQUIRED_TABLES, f"'{table}' is not a valid table name."
-        self.cursor.execute(f"SELECT ID FROM {table} LIMIT 1")
-        result = self.cursor.fetchone()
-        if result is not None:
-            result = int(result[0])
-        return result
-
-    def assertAddRecordFunction(self, func: Callable, params_list: list, table: str):
-        """Asserts records are added to database."""
-        for params in params_list:
-            args = (DB_PATH, ) + params
-            func(*args)
-
-        assert table in DB_REQUIRED_TABLES, f"'{table}' is not a valid table name."
-
-        self.cursor.execute(f"SELECT * FROM {table}")
-
-        id = 0
-        for params in params_list:
-            id += 1
-            expected_record = (id, ) + params
-            record = self.cursor.fetchone()
-            self.assertIsNotNone(
-                record,
-                f"No record found in the '{table}' table."
-            )
-            self.assertEqual(
-                len(record), len(expected_record),
-                f"Invalid number of fields."
-            )
-            self.assertEqual(
-                record, expected_record,
-                f"Expected: {expected_record}, Received {record}"
-            )
-
-
-# Entry Point
-
+### ENTRY POINT ###
 if __name__ == '__main__':
     unittest.main()
