@@ -1,24 +1,28 @@
 import sqlite3
-from typing import Callable
+from typing import Callable, Any
 from functools import wraps
 
-def db_connection(func: Callable) -> Callable[[Callable], Callable]:
-    @wraps(func)
-    def wrapper(filename: str) -> Callable:
+def db_connection(query_func: Callable[[sqlite3.Cursor], Any]) -> Callable[[str], Any]:
+    @wraps(query_func)
+    def wrapper(filename: str) -> Any:
         connection = sqlite3.connect(filename)
         cursor = connection.cursor()
 
-        result = func(cursor)
-
-        connection.commit()
-        cursor.close()
-        connection.close()
+        try:
+            result = query_func(cursor)
+        except sqlite3.Error as error:
+            connection.rollback()
+            raise error
+        finally:
+            connection.commit()
+            cursor.close()
+            connection.close()
 
         return result
     return wrapper
 
 @db_connection
-def create_table_authors(cursor: sqlite3.Cursor):
+def create_table_authors(cursor: sqlite3.Cursor) -> None:
     # Create Authors table
     cursor.execute('''
         CREATE TABLE Authors (
