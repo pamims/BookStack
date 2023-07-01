@@ -1,9 +1,24 @@
 import sqlite3
+from typing import Callable
+from functools import wraps
 
-def create_database(filename):
-    connection = sqlite3.connect(filename)
-    cursor = connection.cursor()
+def db_connection(func: Callable) -> Callable[[Callable], Callable]:
+    @wraps(func)
+    def wrapper(filename: str) -> Callable:
+        connection = sqlite3.connect(filename)
+        cursor = connection.cursor()
 
+        result = func(cursor)
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        return result
+    return wrapper
+
+@db_connection
+def create_table_authors(cursor: sqlite3.Cursor):
     # Create Authors table
     cursor.execute('''
         CREATE TABLE Authors (
@@ -15,6 +30,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_publishers(cursor: sqlite3.Cursor):
     # Create Publishers table
     cursor.execute('''
         CREATE TABLE Publishers (
@@ -23,6 +40,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_genrescategories(cursor: sqlite3.Cursor):
     # Create GenresCategories table
     cursor.execute('''
         CREATE TABLE GenresCategories (
@@ -31,6 +50,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_conditions(cursor: sqlite3.Cursor):
     # Create Conditions table
     cursor.execute('''
         CREATE TABLE Conditions (
@@ -40,6 +61,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_locations(cursor: sqlite3.Cursor):
     # Create Locations table
     cursor.execute('''
         CREATE TABLE Locations (
@@ -49,6 +72,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_books(cursor: sqlite3.Cursor):
     # Create Books table
     cursor.execute('''
         CREATE TABLE Books (
@@ -73,8 +98,19 @@ def create_database(filename):
         )
     ''')
 
-    connection.commit()
-    connection.close()
+@db_connection
+def create_database(cursor: sqlite3.Cursor):
+
+    def call_unwrapped(func: Callable):
+        func.__wrapped__(cursor)
+
+    call_unwrapped(create_table_authors)
+    call_unwrapped(create_table_publishers)
+    call_unwrapped(create_table_genrescategories)
+    call_unwrapped(create_table_conditions)
+    call_unwrapped(create_table_locations)
+    call_unwrapped(create_table_books)
+
 
 def add_author(filename: str, first: str, middle: str, last: str, suffix: str):
     params = (first, middle, last, suffix)
