@@ -166,7 +166,13 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             self, table_name: str, insert_row_func: Callable[..., None],
             params_list: list[tuple[Optional[str]]]
     ) -> None:
-        """Asserts correct table insertion, including ID AUTOINCREMENT."""
+        """
+        Asserts correct table insertion. Includes:
+        Record exists
+        ID AUTOINCREMENT
+        Number of fields
+        Correct values
+        """
         self.validateTableName(table_name, self.db_required_tables)
         self.validateCursor()
         for params in params_list:
@@ -179,6 +185,12 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         self.cursor.execute(f"SELECT * FROM {table_name}")
         id = 0
         for params in params_list:
+            assert len(params) == len(set(params)), (
+                "Cannot assert correct record insertion. Cannot verify "
+                "correct order of parameters because multiple parameters have "
+                "the same value. Ensure different values are being passed for "
+                "each parameter."
+            )
             id += 1 # sqlite database autoincrement id's start at 1
             expected_record = (id, ) + params
             record = self.cursor.fetchone()
@@ -272,19 +284,25 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
 ### TEST CASES ###
 
-# class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
+class TitleTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Title table function. Titles must only be inserted
+    correctly with correct auto-incrementing ID's
+    """
+    table_name = 'Title'
 
-#     def test_create_database_function(self):
-#         database.create_database(self.db_path)
-#         existing_tables = self.getDatabaseTableNames()
-#         db_schema = {}
-#         for table_name in existing_tables:
-#             column_names = self.getTableColumnNames(table_name)
-#             db_schema[table_name] = column_names
-#         self.assertDictEqual(
-#             self.db_required_tables, db_schema,
-#             "\n\nFAILURE: Database schema is incorrect!"
-#         )
+    def setUp(self):
+        print('wtf')
+        """Create title table for testing."""
+        database.create_table_title(self.db_path)
+
+    def test_insert_title_record_creation(self):
+        """Verifies insert_publisher() creates a valid record."""
+        params_list = [(f'Name{i}', ) for i in range(1, 10)]
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_publisher, params_list
+        )
+
 
 # class TestAuthorsTable(BaseDatabaseModuleTestCase):
 #     table_name = 'Authors'
@@ -635,6 +653,20 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 #         # )
 #     # ISBN
 
-# ### ENTRY POINT ###
-# if __name__ == '__main__':
-#     unittest.main()
+# class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
+
+#     def test_create_database_function(self):
+#         database.create_database(self.db_path)
+#         existing_tables = self.getDatabaseTableNames()
+#         db_schema = {}
+#         for table_name in existing_tables:
+#             column_names = self.getTableColumnNames(table_name)
+#             db_schema[table_name] = column_names
+#         self.assertDictEqual(
+#             self.db_required_tables, db_schema,
+#             "\n\nFAILURE: Database schema is incorrect!"
+#         )
+
+### ENTRY POINT ###
+if __name__ == '__main__':
+    unittest.main()
