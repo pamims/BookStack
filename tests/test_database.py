@@ -2,7 +2,7 @@ import unittest
 import os
 import sqlite3
 from source import database
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
 
 ### BASE CLASSES ###
@@ -25,26 +25,25 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     # These are class members because I want to use them in setUpClass and
     # tearDownClass -- the connection only needs established once per testcase
-    connection = None
-    cursor = None
+    connection: sqlite3.Connection = None
+    cursor: sqlite3.Cursor = None
 
-    # def __init__(self, methodName: str = "runtest") -> None:
-    #     super().__init__(methodName)
-
-    def tearDown(self):
+    def tearDown(self) -> None:
+        # Clean the database after each test
         self.removeAllDatabaseTables()
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """Builds database, establishes connection, and sets cursor."""
         #print(f"\nsetUpClass() called: {cls.__name__}\n")
         cls.openDatabaseConnection()
 
     @classmethod
-    def tearDownClass(cls):
+    def tearDownClass(cls) -> None:
         """Closes database connection and removes test database file."""
         #print(f"\ntearDownClass() called: {cls.__name__}\n")
         cls.closeDatabaseConnection()
+        cls.removeDatabaseFile()
 
     @classmethod
     def openDatabaseConnection(cls) -> None:
@@ -54,18 +53,18 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     @classmethod
     def closeDatabaseConnection(cls) -> None:
         if cls.connection is not None:
+            cls.cursor.close()
             cls.connection.close()
             cls.connection = None
             cls.cursor = None
-        cls.removeDatabaseFile()
 
     @classmethod
-    def removeDatabaseFile(cls):
+    def removeDatabaseFile(cls) -> None:
         if os.path.exists(cls.db_path):
             os.remove(cls.db_path)
 
     @classmethod
-    def removeAllDatabaseTables(cls):
+    def removeAllDatabaseTables(cls) -> None:
         user_defined_tables = cls.getDatabaseTableNames()
         for table in user_defined_tables:
             query = f"DROP TABLE IF EXISTS {table}"
@@ -117,7 +116,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         )
         table_names = cls.getDatabaseTableNames()
         if table_name not in table_names:
-            return []
+            return [] # no columns in table that doesn't exist
         cls.cursor.execute(f"PRAGMA table_info({table_name})")
         result = cls.cursor.fetchall()
         column_names = [row[1] for row in result]
@@ -154,10 +153,12 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         pass
 
     def assertCorrectRecordInsertion(
-            self, insert_row_func: Callable,
-            params_list: list[tuple], table_name: str
+            self, table_name: str, insert_row_func: Callable[..., None],
+            params_list: list[tuple[Optional[str]]]
     ) -> None:
         """Asserts correct table insertion, including ID AUTOINCREMENT."""
+        self.validateTableName(table_name, self.db_required_tables)
+        self.validateCursor()
         for params in params_list:
             args = (self.db_path, ) + params
             try:
@@ -165,10 +166,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             except Exception as e:
                 self.fail(f"Error during '{table_name}' insertion: {str(e)}")
 
-        self.validateTableName(table_name, self.db_required_tables)
-        self.validateCursor()
         self.cursor.execute(f"SELECT * FROM {table_name}")
-
         id = 0
         for params in params_list:
             id += 1 # sqlite database autoincrement id's start at 1
@@ -191,37 +189,38 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                 )
 
     def assertNotNullTableConstraints(
-            self, insert_row_func: Callable,
-            params_list: list[tuple], table_name: str
+            self, table_name: str, insert_row_func: Callable[..., None],
+            params_list: list[tuple[Optional[str]]]
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         # get the list of the column names
         try:
             column_names = self.getTableColumnNames(table_name)
-        except self.DatabaseError as e:
+        except self.DatabaseError as e: # could raise either one
             self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
         for params in params_list:
             # make sure only one None is in the parameters
-            assert params.count(None), (
+            assert params.count(None) == 1, (
                 "To check NOT NULL constraints properly, every parameter "
                 "list must contain None exactly once. The particular "
                 "value being tested should be set to None."
             )
+            # make sure the parameters were programmed in correctly
+            assert len(params) + 1 == len(column_names), (
+                "Number of parameters for the insertion call does not match "
+                "the number of columns that are supposed to be in the table."
+            )
             # get the name of the column being tested
-            column_tested = column_names[params.index(None)]
+            col_index = params.index(None) + 1 # accounts for ID column
+            column_tested = column_names[col_index]
             # get the args to send to the insert_row_func
             args = (self.db_path, ) + params
             # generate the failure message
             msg = f"{table_name} {column_tested} NOT NULL constraint fails."
-            error_msg = None
-            try:
+            with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
                 insert_row_func(*args)
-            except sqlite3.IntegrityError as e:
-                error_msg = str(e)
-                if "NOT NULL constraint failed" not in error_msg:
-                    self.fail(msg)
-            if error_msg is None:
-                self.fail(msg)
+            error_msg = str(ctx.exception)
+            self.assertIn("NOT NULL constraint failed", error_msg, msg)
 
 ### TEST CASES ###
 
@@ -248,24 +247,22 @@ class TestAuthorsTable(BaseDatabaseModuleTestCase):
     def test_add_author_creates_valid_record(self):
         """Verifies add_author() creates a valid record."""
         self.assertCorrectRecordInsertion(
-            database.add_author,
+            self.table_name, database.add_author,
             [
                 ('FIRST', 'M', 'LAST', 'SUFFIX'),
                 ('first', 'm', 'last', 'suffix'),
                 ('Bob', None, 'Anderson', None)
-            ],
-            self.table_name
+            ]
         )
 
     def test_author_table_not_null_constraints(self):
         """Test not null constraints in Authors table."""
         self.assertNotNullTableConstraints(
-            database.add_author,
+            self.table_name, database.add_author,
             [
                 (None, 'MiddleName', 'LastName', 'Suffix'),
                 ('FirstName', 'MiddleName', None, 'Suffix')
-            ],
-            self.table_name
+            ]
         )
 
 class TestPublishersTable(BaseDatabaseModuleTestCase):
@@ -277,13 +274,13 @@ class TestPublishersTable(BaseDatabaseModuleTestCase):
     def test_add_publisher_creates_valid_record(self):
         """Verifies add_publisher() creates a valid record."""
         self.assertCorrectRecordInsertion(
-            database.add_publisher, [('NAME', ), ('name', )], self.table_name
+            self.table_name, database.add_publisher, [('NAME', ), ('name', )]
         )
 
     def test_publisher_table_not_null_constraints(self):
         """Test not null constraints in Publishers table."""
         self.assertNotNullTableConstraints(
-            database.add_publisher, [(None, )], self.table_name
+            self.table_name, database.add_publisher, [(None, )]
         )
 
 class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
@@ -295,13 +292,14 @@ class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
     def test_add_genrecategory_creates_valid_record(self):
         """Verifies add_genrecategory() creates a valid record."""
         self.assertCorrectRecordInsertion(
-            database.add_genrecategory, [('NAME', ), ('name', )], self.table_name
+            self.table_name, database.add_genrecategory,
+            [('NAME', ), ('name', )]
         )
 
     def test_genrecategory_table_not_null_constraints(self):
         """Test not null constraints in GenresCategories table."""
         self.assertNotNullTableConstraints(
-            database.add_genrecategory, [(None, )], self.table_name
+            self.table_name, database.add_genrecategory, [(None, )]
         )
 
 class TestConditionsTable(BaseDatabaseModuleTestCase):
@@ -313,18 +311,17 @@ class TestConditionsTable(BaseDatabaseModuleTestCase):
     def test_add_condition_creates_valid_record(self):
         """Verifies add_condition() creates a valid record."""
         self.assertCorrectRecordInsertion(
-            database.add_condition,
+            self.table_name, database.add_condition,
             [
                 ('NAME', 'DESCRIPTION'),
                 ('name', None),
-            ],
-            self.table_name
+            ]
         )
 
     def test_condition_table_not_null_constraints(self):
         """Test not null constraints in Conditions table."""
         self.assertNotNullTableConstraints(
-            database.add_condition, [(None, 'Hello')], self.table_name
+            self.table_name, database.add_condition, [(None, 'Hello')]
         )
 
 class TestLocationsTable(BaseDatabaseModuleTestCase):
@@ -336,17 +333,16 @@ class TestLocationsTable(BaseDatabaseModuleTestCase):
     def test_add_location_creates_valid_record(self):
         """Verifies add_location() creates a valid record."""
         self.assertCorrectRecordInsertion(
-            database.add_location,
+            self.table_name, database.add_location,
             [
                 ('NAME', 'DESCRIPTION'),
                 ('name', None)
-            ],
-            self.table_name
+            ]
         )
 
     def test_location_table_not_null_constraints(self):
         self.assertNotNullTableConstraints(
-            database.add_location, [(None, 'Description')], self.table_name
+            self.table_name, database.add_location, [(None, 'Description')]
         )
 
 class TestBooksTable(BaseDatabaseModuleTestCase):
@@ -354,11 +350,18 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
 
     def setUp(self):
         database.create_database(self.db_path)
-        database.add_author(self.db_path, "AuthorFirst", "AuthorMiddle", "AuthorLast", "AuthorSuffix")
+        database.add_author(
+            self.db_path, "AuthorFirst", "AuthorMiddle",
+            "AuthorLast", "AuthorSuffix"
+        )
         database.add_publisher(self.db_path, "PublisherName")
         database.add_genrecategory(self.db_path, "GenreCategoryName")
-        database.add_condition(self.db_path, "ConditionName", "ConditionDescription")
-        database.add_location(self.db_path, "LocationName", "LocationDescription")
+        database.add_condition(self.db_path, "ConditionName",
+                               "ConditionDescription"
+        )
+        database.add_location(self.db_path, "LocationName",
+                              "LocationDescription"
+        )
 
     def test_add_book_creates_valid_record(self):
         """Verifies add_book() creates a valid record."""
@@ -383,7 +386,7 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
             Price, LocationID, isbn
         )
         self.assertCorrectRecordInsertion(
-            database.add_book, [params, params], self.table_name
+            self.table_name, database.add_book, [params, params]
         )
 
     def test_books_table_foreign_key_constraints(self):
@@ -407,7 +410,8 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
         error_message = str(context.exception)
         self.assertIn(
             "FOREIGN KEY constraint failed", error_message,
-            "AuthorID, PublisherID, GenreID, ConditionID, and LocationID should have FOREIGN KEY constraints"
+            "AuthorID, PublisherID, GenreID, ConditionID, and LocationID "
+            "should have FOREIGN KEY constraints"
         )
 
     def test_book_table_not_null_constraints(self):
@@ -426,7 +430,7 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
         isbn = 'ISBN'
 
         self.assertNotNullTableConstraints(
-            database.add_book,
+            self.table_name, database.add_book,
             [
                 (None, AuthorID, PublisherID,
                 GenreID, YearPublished, Edition,
@@ -436,8 +440,7 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
                 GenreID, YearPublished, Edition,
                 ConditionID, Description, DateAcquired,
                 Price, LocationID, isbn)
-            ],
-            self.table_name
+            ]
         )
 
 ### ENTRY POINT ###
