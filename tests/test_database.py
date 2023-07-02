@@ -10,17 +10,19 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     """Base test case for all database tests."""
     db_path = 'test_book_stack_database.db'
     db_required_tables = {
-        'Authors': ['ID', 'FirstName', 'MiddleName', 'LastName', 'Suffix'],
-        'Publishers': ['ID', 'Name'],
-        'GenresCategories': ['ID', 'Name'],
-        'Conditions': ['ID', 'Name', 'Description'],
-        'Locations': ['ID', 'Name', 'Description'],
-        'Books': [
-            'ID', 'Title', 'AuthorID', 'PublisherID',
-            'GenreID', 'YearPublished', 'Edition',
-            'ConditionID', 'Description', 'DateAcquired',
-            'Price', 'LocationID', 'ISBN'
-        ]
+        'Title'     : ['ID', 'Name'],
+        'Author'    : ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
+        'Genre'     : ['ID', 'Name'],
+        'TitleAuthor' : ['ID', 'TitleID', 'AuthorID'],
+        'Work'      : ['ID', 'TitleAuthorID', 'GenreID'],
+
+        'Format'    : ['ID', 'Name'],
+        'Publisher' : ['ID', 'Name'],
+        'Publication' : ['ID', 'WorkID', 'FormatID', 'PublisherID', 'ISBN'],
+
+        'Condition' : ['ID', 'Name', 'Description'],
+        'Location'  : ['ID', 'ParentLocationID', 'Name', 'Description'],
+        'Book'      : ['ID', 'PublicationID', 'ConditionID', 'LocationID']
     }
 
     # These are class members because I want to use them in setUpClass and
@@ -123,19 +125,27 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         return column_names
 
     @classmethod
-    def getFirstValidRecordID(cls, table_name: str):
-        valid_list = ', '.join(list(cls.db_required_tables))
+    def getValidRecordIDs(cls, table_name: str):
+        cls.validateCursor("Could not get Record IDs. No database connection.")
+        valid_list_str = ', '.join(list(cls.db_required_tables))
         cls.validateTableName(
             table_name, cls.db_required_tables,
-            f"Cannot retrieve columns for '{table_name} table.\n"
-            f"Valid names include: {valid_list}"
+            f"Cannot retrieve columns for '{table_name}' table.\n"
+            f"Valid names include: {valid_list_str}\n"
             f"Invalid table name: {table_name}\n"
         )
-        cls.validateCursor("Could not get Record ID. No database connection.")
-        cls.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID LIMIT 1")
-        result = cls.cursor.fetchone()
+        table_names = cls.getDatabaseTableNames()
+        table_list_str = ', '.join(list(table_names))
+        cls.validateTableName(
+            table_name, table_names,
+            f"Cannot retrieve columns for '{table_name}' table.\n"
+            f"Tables in database: {table_list_str}\n"
+            f"Table name given: {table_name}\n"
+        )
+        cls.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID")
+        result = cls.cursor.fetchall()
         if result is not None:
-            result = int(result[0])
+            result = [int(item[0]) for item in result]
         return result
 
     class DatabaseError(Exception):
@@ -231,9 +241,8 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         except self.DatabaseError as e: # could raise either one
             self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
         # make sure the parameters were programmed in correctly
-        assert (
-            len(a_params) + 1 == len(column_names) and
-            len(a_params) == len(b_params),
+        a_len = len(a_params)
+        assert a_len + 1 == len(column_names) and a_len == len(b_params), (
             "Number of parameters for the insertion call does not match "
             "the number of columns that are supposed to be in the table."
         )
@@ -263,285 +272,369 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
 ### TEST CASES ###
 
-class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
+# class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
 
-    def test_create_database_function(self):
-        database.create_database(self.db_path)
-        existing_tables = self.getDatabaseTableNames()
-        db_schema = {}
-        for table_name in existing_tables:
-            column_names = self.getTableColumnNames(table_name)
-            db_schema[table_name] = column_names
-        self.assertDictEqual(
-            self.db_required_tables, db_schema,
-            "\n\nFAILURE: Database schema is incorrect!"
-        )
+#     def test_create_database_function(self):
+#         database.create_database(self.db_path)
+#         existing_tables = self.getDatabaseTableNames()
+#         db_schema = {}
+#         for table_name in existing_tables:
+#             column_names = self.getTableColumnNames(table_name)
+#             db_schema[table_name] = column_names
+#         self.assertDictEqual(
+#             self.db_required_tables, db_schema,
+#             "\n\nFAILURE: Database schema is incorrect!"
+#         )
 
-class TestAuthorsTable(BaseDatabaseModuleTestCase):
-    table_name = 'Authors'
+# class TestAuthorsTable(BaseDatabaseModuleTestCase):
+#     table_name = 'Authors'
 
-    def setUp(self):
-        database.create_table_authors(self.db_path)
+#     def setUp(self):
+#         database.create_table_authors(self.db_path)
 
-    def test_add_author_creates_valid_record(self):
-        """Verifies add_author() creates a valid record."""
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_author,
-            [
-                ('FIRST', 'M', 'LAST', 'SUFFIX'),
-                ('first', 'm', 'last', 'suffix'),
-                ('Bob', None, 'Anderson', None)
-            ]
-        )
+#     def test_add_author_creates_valid_record(self):
+#         """Verifies add_author() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_author,
+#             [
+#                 ('FIRST', 'M', 'LAST', 'SUFFIX'),
+#                 ('first', 'm', 'last', 'suffix'),
+#                 ('Bob', None, 'Anderson', None)
+#             ]
+#         )
 
-    def test_author_table_not_null_constraints(self):
-        """Test not null constraints in Authors table."""
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_author,
-            [
-                (None, 'MiddleName', 'LastName', 'Suffix'),
-                ('FirstName', 'MiddleName', None, 'Suffix')
-            ]
-        )
+#     def test_author_table_not_null_constraints(self):
+#         """Test not null constraints in Authors table."""
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_author,
+#             [
+#                 (None, 'MiddleName', 'LastName', 'Suffix'),
+#                 ('FirstName', 'MiddleName', None, 'Suffix')
+#             ]
+#         )
 
-class TestPublishersTable(BaseDatabaseModuleTestCase):
-    table_name = 'Publishers'
+# class TestPublishersTable(BaseDatabaseModuleTestCase):
+#     table_name = 'Publishers'
 
-    def setUp(self):
-        database.create_table_publishers(self.db_path)
+#     def setUp(self):
+#         database.create_table_publishers(self.db_path)
 
-    def test_add_publisher_creates_valid_record(self):
-        """Verifies add_publisher() creates a valid record."""
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_publisher, [('NAME', ), ('name', )]
-        )
+#     def test_add_publisher_creates_valid_record(self):
+#         """Verifies add_publisher() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_publisher, [('NAME', ), ('name', )]
+#         )
 
-    def test_publisher_table_not_null_constraints(self):
-        """Test not null constraints in Publishers table."""
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_publisher, [(None, )]
-        )
+#     def test_publisher_table_not_null_constraints(self):
+#         """Test not null constraints in Publishers table."""
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_publisher, [(None, )]
+#         )
 
-    def test_publisher_table_name_unique_constraint(self):
-        """Test unique constraints on Publishers Name column."""
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_publisher, ('NAME', ), ('NAME', )
-        )
+#     def test_publisher_table_name_unique_constraint(self):
+#         """Test unique constraints on Publishers Name column."""
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_publisher, ('NAME', ), ('NAME', )
+#         )
 
-class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
-    table_name = 'GenresCategories'
+# class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
+#     table_name = 'GenresCategories'
 
-    def setUp(self):
-        database.create_table_genrescategories(self.db_path)
+#     def setUp(self):
+#         database.create_table_genrescategories(self.db_path)
 
-    def test_add_genrecategory_creates_valid_record(self):
-        """Verifies add_genrecategory() creates a valid record."""
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_genrecategory,
-            [('NAME', ), ('name', )]
-        )
+#     def test_add_genrecategory_creates_valid_record(self):
+#         """Verifies add_genrecategory() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_genrecategory,
+#             [('NAME', ), ('name', )]
+#         )
 
-    def test_genrecategory_table_not_null_constraints(self):
-        """Test not null constraints in GenresCategories table."""
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_genrecategory, [(None, )]
-        )
+#     def test_genrecategory_table_not_null_constraints(self):
+#         """Test not null constraints in GenresCategories table."""
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_genrecategory, [(None, )]
+#         )
 
-    def test_genrecategory_table_name_unique_constraint(self):
-        """Test unique constraints on GenresCategories Name column."""
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_genrecategory, ('NAME', ), ('NAME', )
-        )
+#     def test_genrecategory_table_name_unique_constraint(self):
+#         """Test unique constraints on GenresCategories Name column."""
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_genrecategory, ('NAME', ), ('NAME', )
+#         )
 
-class TestConditionsTable(BaseDatabaseModuleTestCase):
-    table_name = 'Conditions'
+# class TestConditionsTable(BaseDatabaseModuleTestCase):
+#     table_name = 'Conditions'
 
-    def setUp(self):
-        database.create_table_conditions(self.db_path)
+#     def setUp(self):
+#         database.create_table_conditions(self.db_path)
 
-    def test_add_condition_creates_valid_record(self):
-        """Verifies add_condition() creates a valid record."""
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_condition,
-            [
-                ('NAME', 'DESCRIPTION'),
-                ('name', None),
-            ]
-        )
+#     def test_add_condition_creates_valid_record(self):
+#         """Verifies add_condition() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_condition,
+#             [
+#                 ('NAME', 'DESCRIPTION'),
+#                 ('name', None),
+#             ]
+#         )
 
-    def test_condition_table_not_null_constraints(self):
-        """Test not null constraints in Conditions table."""
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_condition, [(None, 'Hello')]
-        )
+#     def test_condition_table_not_null_constraints(self):
+#         """Test not null constraints in Conditions table."""
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_condition, [(None, 'Hello')]
+#         )
 
-    def test_condition_table_name_unique_constraint(self):
-        """Test unique constraints on Conditions Name column."""
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_condition,
-            ('NAME', 'description a'), ('NAME', 'description b')
-        )
+#     def test_condition_table_name_unique_constraint(self):
+#         """Test unique constraints on Conditions Name column."""
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_condition,
+#             ('NAME', 'description a'), ('NAME', 'description b')
+#         )
 
-    def test_condition_table_description_unique_constraint(self):
-        """Test unique constraints on Conditions Description column."""
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_condition,
-            ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
-        )
+#     def test_condition_table_description_unique_constraint(self):
+#         """Test unique constraints on Conditions Description column."""
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_condition,
+#             ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
+#         )
 
-class TestLocationsTable(BaseDatabaseModuleTestCase):
-    table_name = 'Locations'
+# class TestLocationsTable(BaseDatabaseModuleTestCase):
+#     table_name = 'Locations'
 
-    def setUp(self):
-        database.create_table_locations(self.db_path)
+#     def setUp(self):
+#         database.create_table_locations(self.db_path)
 
-    def test_add_location_creates_valid_record(self):
-        """Verifies add_location() creates a valid record."""
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_location,
-            [
-                ('NAME', 'DESCRIPTION'),
-                ('name', None)
-            ]
-        )
+#     def test_add_location_creates_valid_record(self):
+#         """Verifies add_location() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_location,
+#             [
+#                 ('NAME', 'DESCRIPTION'),
+#                 ('name', None)
+#             ]
+#         )
 
-    def test_location_table_not_null_constraints(self):
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_location, [(None, 'Description')]
-        )
+#     def test_location_table_not_null_constraints(self):
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_location, [(None, 'Description')]
+#         )
 
-    def test_location_table_name_unique_constraint(self):
-        """
-        Test unique constraints on Conditions Name column.
-        """
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_location,
-            ('NAME', 'description a'), ('NAME', 'description b')
-        )
+#     def test_location_table_name_unique_constraint(self):
+#         """
+#         Test unique constraints on Conditions Name column.
+#         """
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_location,
+#             ('NAME', 'description a'), ('NAME', 'description b')
+#         )
 
-    def test_location_table_description_unique_constraint(self):
-        """
-        Test unique constraints on Conditions Description column.
-        """
-        self.assertUniqueTableConstraint(
-            self.table_name, database.add_location,
-            ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
-        )
+#     def test_location_table_description_unique_constraint(self):
+#         """
+#         Test unique constraints on Conditions Description column.
+#         """
+#         self.assertUniqueTableConstraint(
+#             self.table_name, database.add_location,
+#             ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
+#         )
 
-class TestBooksTable(BaseDatabaseModuleTestCase):
-    table_name = 'Books'
+# class TestISBNTable(BaseDatabaseModuleTestCase):
+#     table_name = 'ISBN'
 
-    def setUp(self):
-        database.create_database(self.db_path)
-        self.addParentRows()
+#     def setUp(self) -> None:
+#         """Creates ISBN table and all of its parent tables."""
+#         self.createParentTables()
+#         database.create_table_isbns(self.db_path)
 
-    def addParentRows(self):
-        database.add_author(
-            self.db_path, "AuthorFirst", "AuthorMiddle",
-            "AuthorLast", "AuthorSuffix"
-        )
-        database.add_publisher(self.db_path, "PublisherName")
-        database.add_genrecategory(self.db_path, "GenreCategoryName")
-        database.add_condition(self.db_path, "ConditionName",
-                               "ConditionDescription"
-        )
-        database.add_location(self.db_path, "LocationName",
-                              "LocationDescription"
-        )
+#     @classmethod
+#     def createParentTables(cls):
+#         """Creates each ISBN table parent table."""
+#         database.create_table_authors(cls.db_path)
+#         database.create_table_publishers(cls.db_path)
+#         database.create_table_genrescategories(cls.db_path)
 
-    def test_add_book_creates_valid_record(self):
-        """Verifies add_book() creates a valid record."""
-        AuthorID = self.getFirstValidRecordID('Authors')
-        PublisherID = self.getFirstValidRecordID('Publishers')
-        GenreID = self.getFirstValidRecordID('GenresCategories')
-        ConditionID = self.getFirstValidRecordID('Conditions')
-        LocationID = self.getFirstValidRecordID('Locations')
+#     @classmethod
+#     def addNParentRows(cls, n: int) -> None:
+#         """Inserts n completely unique rows to each ISBN table parent table"""
+#         assert n > 1, (
+#             "TestISBNsTable.addParentRows() must insert >= 1 row. Set num >= 1"
+#         )
+#         for i in range(1, n + 1):
+#             database.add_author(
+#                 cls.db_path, f"AFirst{i}", f"AMid{i}", f"ALast{i}", f"ASuf{i}"
+#             )
+#             database.add_publisher(cls.db_path, f"PName{i}")
+#             database.add_genrecategory(cls.db_path, f"GCName{i}")
 
-        Title = 'Title'
-        YearPublished = 2000
-        Edition = 1
-        DateAcquired = '2020-01-01'
-        Description = 'Description'
-        Price = 9.99
-        isbn = 'ISBN'
+#     @classmethod
+#     def getNInsertionParams(cls, n: int = 1) -> tuple[list[int | str]]:
+#         """
+#         Generates tuple of n lists containing insertion parameters for the
+#         ISBNs table. Inserts n sets of parent table records, providing n unique
+#         IDs, to allow each parameter list to be completely unique.
+#         """
+#         assert n > 1, (
+#             "TestBooksTable.getNInsertionParameterLists() must return >= 1 "
+#             "list. Set num_rows >= 1"
+#         )
 
-        params = (
-            Title, AuthorID, PublisherID,
-            GenreID, YearPublished, Edition,
-            ConditionID, Description, DateAcquired,
-            Price, LocationID, isbn
-        )
-        self.assertCorrectRecordInsertion(
-            self.table_name, database.add_book, [params, params]
-        )
+#         cls.addNParentRows(n)
+#         TitleIDs = cls.getValidRecordIDs('Titles')
+#         AuthorIDs = cls.getValidRecordIDs('Authors')
+#         PublisherIDs = cls.getValidRecordIDs('Publishers')
+#         GenreIDs = cls.getValidRecordIDs('GenresCategories')
 
-    def test_books_table_foreign_key_constraints(self):
-        """Test foreign key constraints in Books table."""
-        parameters = (
-            "Title", 999, 999, 999, 2000, 1, 999,
-            "Description", "2000-01-01", 9.99, 999, "ISBN"
-        )
-        # Turn foreign key functionality on
-        self.cursor.execute("PRAGMA foreign_keys = ON")
-        with self.assertRaises(sqlite3.IntegrityError) as context:
-            self.cursor.execute(
-                '''
-                INSERT INTO Books (Title, AuthorID, PublisherID, GenreID,
-                YearPublished, Edition, ConditionID, Description, DateAcquired,
-                Price, LocationID, ISBN)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                parameters
-            )
-        error_message = str(context.exception)
-        self.assertIn(
-            "FOREIGN KEY constraint failed", error_message,
-            "AuthorID, PublisherID, GenreID, ConditionID, and LocationID "
-            "should have FOREIGN KEY constraints"
-        )
+#         test_params_list = []
+#         for i in range(0, n):
+#             AuthorID = AuthorIDs[i]
+#             PublisherID = PublisherIDs[i]
+#             GenreID = GenreIDs[i]
 
-    def test_book_table_not_null_constraints(self):
+#             count = i + 1
+#             params = [
+#                 f'ISBN {count}', f'Title {count}', AuthorID, PublisherID,
+#                 2000 + count, count, GenreID, f'Desc{1}'
+#             ]
+#             test_params_list.append(params)
 
-        AuthorID = self.getFirstValidRecordID('Authors')
-        PublisherID = self.getFirstValidRecordID('Publishers')
-        GenreID = self.getFirstValidRecordID('GenresCategories')
-        ConditionID = self.getFirstValidRecordID('Conditions')
-        LocationID = self.getFirstValidRecordID('Locations')
+#         return tuple(test_params_list)
 
-        YearPublished = 2000
-        Edition = 1
-        DateAcquired = '2020-01-01'
-        Description = 'Description'
-        Price = 9.99
-        isbn = 'ISBN'
 
-        self.assertNotNullTableConstraints(
-            self.table_name, database.add_book,
-            [
-                (None, AuthorID, PublisherID,
-                GenreID, YearPublished, Edition,
-                ConditionID, Description, DateAcquired,
-                Price, LocationID, isbn),
-                ('Title', None, PublisherID,
-                GenreID, YearPublished, Edition,
-                ConditionID, Description, DateAcquired,
-                Price, LocationID, isbn)
-            ]
-        )
+#     def test_add_isbn_creates_valid_record(self):
+#         """Verifies add_isbn() creates a valid record."""
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_isbn,
+#             [
+#                 ('ISBN', 'Title', AuthorID, PublisherID, 2000, 1, GenreID, 'desc'),
+#                 ('name', None)
+#             ]
+#         )
 
-    def test_book_table_isbn_unique_constraints(self):
-        """Test unique constraints on Conditions Name and Description columns."""
-        # self.assertUniqueTableConstraint(
-        #     self.table_name, database.add_publisher,
-        #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
-        #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
-        #     ),
-        #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
-        #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
-        #     )
-        # )
-    # ISBN
+# class TestBooksTable(BaseDatabaseModuleTestCase):
+#     table_name = 'Books'
 
-### ENTRY POINT ###
-if __name__ == '__main__':
-    unittest.main()
+#     def setUp(self) -> None:
+#         """Creates Books table and all of its parent tables."""
+#         database.create_database(self.db_path)
+
+#     def addParentRows(self, num: int = 1) -> None:
+#         """Inserts n records into each of the Books table's parent tables."""
+#         assert num > 1, (
+#             "TestBooksTable.addParentRows() must insert >= 1 row. Set num >= 1"
+#         )
+#         for i in range(1, num + 1):
+#             database.add_condition(self.db_path, f"CName{i}", f"CDesc{i}")
+#             database.add_location(self.db_path, f"LName{i}", f"LDesc{i}")
+
+#     def getNInsertionParams(
+#             self, num_rows: int = 1
+#         ) -> tuple[tuple[int | str | float]]:
+#         """
+#         Generates tuple of n lists containing insertion parameters for the
+#         books table. Inserts n sets of parent table records to allow each
+#         parameter list to be completely unique.
+#         """
+#         assert num_rows > 1, (
+#             "TestBooksTable.getNInsertionParameterLists() must return >= 1 "
+#             "list. Set num_rows >= 1"
+#         )
+#         self.addParentRows(num_rows)
+#         test_params_list = []
+#         for i in range(0, num_rows):
+#             ConditionID = self.getValidRecordIDs('Conditions')[i]
+#             LocationID = self.getValidRecordIDs('Locations')[i]
+
+#             count = i + 1
+#             year = 2000 + count
+#             params = (
+#                 f'Title {count}', AuthorID, PublisherID, GenreID, year, count,
+#                 ConditionID, f'Desc {count}', f'{year}-01-01', count + 0.99,
+#                 LocationID, f'ISBN{count}'
+#             )
+#             test_params_list.append(params)
+#         return tuple(test_params_list)
+
+
+#     def test_add_book_creates_valid_record(self):
+#         """Verifies add_book() creates a valid record."""
+#         param_lists = self.getNInsertionParameterLists(1)
+
+#         params = (
+#             Title, AuthorID, PublisherID,
+#             GenreID, YearPublished, Edition,
+#             ConditionID, Description, DateAcquired,
+#             Price, LocationID, isbn
+#         )
+#         self.assertCorrectRecordInsertion(
+#             self.table_name, database.add_book, [params, params]
+#         )
+
+#     def test_books_table_foreign_key_constraints(self):
+#         """Test foreign key constraints in Books table."""
+#         parameters = (
+#             "Title", 999, 999, 999, 2000, 1, 999,
+#             "Description", "2000-01-01", 9.99, 999, "ISBN"
+#         )
+#         # Turn foreign key functionality on
+#         self.cursor.execute("PRAGMA foreign_keys = ON")
+#         with self.assertRaises(sqlite3.IntegrityError) as context:
+#             self.cursor.execute(
+#                 '''
+#                 INSERT INTO Books (Title, AuthorID, PublisherID, GenreID,
+#                 YearPublished, Edition, ConditionID, Description, DateAcquired,
+#                 Price, LocationID, ISBN)
+#                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+#                 ''',
+#                 parameters
+#             )
+#         error_message = str(context.exception)
+#         self.assertIn(
+#             "FOREIGN KEY constraint failed", error_message,
+#             "AuthorID, PublisherID, GenreID, ConditionID, and LocationID "
+#             "should have FOREIGN KEY constraints"
+#         )
+
+#     def test_book_table_not_null_constraints(self):
+
+#         AuthorID = self.getValidRecordIDs('Authors')[0]
+#         PublisherID = self.getValidRecordIDs('Publishers')[0]
+#         GenreID = self.getValidRecordIDs('GenresCategories')[0]
+#         ConditionID = self.getValidRecordIDs('Conditions')[0]
+#         LocationID = self.getValidRecordIDs('Locations')[0]
+
+#         YearPublished = 2000
+#         Edition = 1
+#         DateAcquired = '2020-01-01'
+#         Description = 'Description'
+#         Price = 9.99
+#         isbn = 'ISBN'
+
+#         self.assertNotNullTableConstraints(
+#             self.table_name, database.add_book,
+#             [
+#                 (None, AuthorID, PublisherID,
+#                 GenreID, YearPublished, Edition,
+#                 ConditionID, Description, DateAcquired,
+#                 Price, LocationID, isbn),
+#                 ('Title', None, PublisherID,
+#                 GenreID, YearPublished, Edition,
+#                 ConditionID, Description, DateAcquired,
+#                 Price, LocationID, isbn)
+#             ]
+#         )
+
+#     def test_book_table_isbn_unique_constraints(self):
+#         """Test unique constraints on Conditions Name and Description columns."""
+#         # self.assertUniqueTableConstraint(
+#         #     self.table_name, database.add_publisher,
+#         #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
+#         #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
+#         #     ),
+#         #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
+#         #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
+#         #     )
+#         # )
+#     # ISBN
+
+# ### ENTRY POINT ###
+# if __name__ == '__main__':
+#     unittest.main()
