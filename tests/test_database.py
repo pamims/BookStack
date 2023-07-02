@@ -176,9 +176,8 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         self.validateTableName(table_name, self.db_required_tables)
         self.validateCursor()
         for params in params_list:
-            args = (self.db_path, ) + params
             try:
-                insert_row_func(*args)
+                insert_row_func(self.db_path, *params)
             except Exception as e:
                 self.fail(f"Error during '{table_name}' insertion: {str(e)}")
 
@@ -286,8 +285,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
 class TitleTableTestCase(BaseDatabaseModuleTestCase):
     """
-    Tests for validating Title table function. Titles must only be inserted
-    correctly with correct auto-incrementing ID's
+    Tests for validating Title table function. Titles must be inserted
+    correctly with correct auto-incrementing ID's. Title name should NOT
+    be UNIQUE.
     """
     table_name = 'Title'
 
@@ -296,12 +296,20 @@ class TitleTableTestCase(BaseDatabaseModuleTestCase):
         """Create title table for testing."""
         database.create_table_title(self.db_path)
 
-    def test_insert_title_record_creation(self):
+    def test_title_insert_record_creation(self):
         """Verifies insert_publisher() creates a valid record."""
         params_list = [(f'Name{i}', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_publisher, params_list
+            self.table_name, database.insert_title, params_list
         )
+
+    def test_title_no_unique_constraint(self):
+        """Verifies no unique constraint on title Name field."""
+        params_list = [(f'Name', ) for i in range(1, 10)]
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_title, params_list
+        )
+
 
 
 # class TestAuthorsTable(BaseDatabaseModuleTestCase):

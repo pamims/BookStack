@@ -2,14 +2,16 @@ import sqlite3
 from typing import Callable, Any
 from functools import wraps
 
-def db_connection(query_func: Callable[[sqlite3.Cursor], Any]) -> Callable[[str], Any]:
+def db_connection(
+        query_func: Callable[[sqlite3.Cursor, tuple[Any, ...]], Any]
+) -> Callable[[str, tuple[Any]], Any]:
     @wraps(query_func)
-    def wrapper(filename: str) -> Any:
-        connection = sqlite3.connect(filename)
+    def wrapper(db_path: str, *args: tuple[Any, ...]) -> Any:
+        connection = sqlite3.connect(db_path)
         cursor = connection.cursor()
 
         try:
-            result = query_func(cursor)
+            result = query_func(cursor, *args)
         except sqlite3.Error as error:
             connection.rollback()
             raise error
@@ -20,6 +22,27 @@ def db_connection(query_func: Callable[[sqlite3.Cursor], Any]) -> Callable[[str]
 
         return result
     return wrapper
+
+@db_connection
+def create_table_title(cursor: sqlite3.Cursor) -> None:
+    """Create title table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Title (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT NOT NULL
+        )
+        '''
+    )
+
+@db_connection
+def insert_title(cursor: sqlite3.Cursor, *args):
+    cursor.execute(
+        '''
+        INSERT INTO Title (Name)
+        VALUES (?)
+        ''', args
+    )
 
 # @db_connection
 # def create_table_authors(cursor: sqlite3.Cursor) -> None:
