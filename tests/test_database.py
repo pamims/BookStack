@@ -193,7 +193,6 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             params_list: list[tuple[Optional[str]]]
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
-        # get the list of the column names
         try:
             column_names = self.getTableColumnNames(table_name)
         except self.DatabaseError as e: # could raise either one
@@ -216,11 +215,51 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             # get the args to send to the insert_row_func
             args = (self.db_path, ) + params
             # generate the failure message
-            msg = f"{table_name} {column_tested} NOT NULL constraint fails."
+            msg = f"{table_name} [{column_tested}] NOT NULL constraint fails."
             with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
                 insert_row_func(*args)
             error_msg = str(ctx.exception)
             self.assertIn("NOT NULL constraint failed", error_msg, msg)
+
+    def assertUniqueTableConstraint(
+            self, table_name: str, insert_row_func: Callable[..., None],
+            a_params: tuple[Optional[str]], b_params: tuple[Optional[str]]
+    ) -> None:
+        """Asserts NOT NULL constraint detected when adding record."""
+        try:
+            column_names = self.getTableColumnNames(table_name)
+        except self.DatabaseError as e: # could raise either one
+            self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
+        # make sure the parameters were programmed in correctly
+        assert (
+            len(a_params) + 1 == len(column_names) and
+            len(a_params) == len(b_params),
+            "Number of parameters for the insertion call does not match "
+            "the number of columns that are supposed to be in the table."
+        )
+        # make sure exactly one item in each parameter list is the same
+        matched_item = None
+        count_matches = 0
+        for a, b in zip(a_params, b_params):
+            if a == b:
+                count_matches += 1
+                matched_item = a # and b
+        assert count_matches == 1, (
+            "To check UNIQUE constraints properly, the parameter lists must "
+            "contain exactly one item in common. The particular value being "
+            "tested should be the common item."
+        )
+        column_index = a_params.index(matched_item) + 1
+        column_tested = column_names[column_index]
+        filename = (self.db_path, )
+        a_args = filename + a_params
+        b_args = filename + b_params
+        msg = f"{table_name} [{column_tested}] UNIQUE constraint fails."
+        with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
+            insert_row_func(*a_args)
+            insert_row_func(*b_args)
+        error_msg = str(ctx.exception)
+        self.assertIn("UNIQUE constraint failed", error_msg, msg)
 
 ### TEST CASES ###
 
@@ -283,6 +322,12 @@ class TestPublishersTable(BaseDatabaseModuleTestCase):
             self.table_name, database.add_publisher, [(None, )]
         )
 
+    def test_publisher_table_name_unique_constraint(self):
+        """Test unique constraints on Publishers Name column."""
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_publisher, ('NAME', ), ('NAME', )
+        )
+
 class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
     table_name = 'GenresCategories'
 
@@ -300,6 +345,12 @@ class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
         """Test not null constraints in GenresCategories table."""
         self.assertNotNullTableConstraints(
             self.table_name, database.add_genrecategory, [(None, )]
+        )
+
+    def test_genrecategory_table_name_unique_constraint(self):
+        """Test unique constraints on GenresCategories Name column."""
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_genrecategory, ('NAME', ), ('NAME', )
         )
 
 class TestConditionsTable(BaseDatabaseModuleTestCase):
@@ -324,6 +375,20 @@ class TestConditionsTable(BaseDatabaseModuleTestCase):
             self.table_name, database.add_condition, [(None, 'Hello')]
         )
 
+    def test_condition_table_name_unique_constraint(self):
+        """Test unique constraints on Conditions Name column."""
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_condition,
+            ('NAME', 'description a'), ('NAME', 'description b')
+        )
+
+    def test_condition_table_description_unique_constraint(self):
+        """Test unique constraints on Conditions Description column."""
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_condition,
+            ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
+        )
+
 class TestLocationsTable(BaseDatabaseModuleTestCase):
     table_name = 'Locations'
 
@@ -345,11 +410,32 @@ class TestLocationsTable(BaseDatabaseModuleTestCase):
             self.table_name, database.add_location, [(None, 'Description')]
         )
 
+    def test_location_table_name_unique_constraint(self):
+        """
+        Test unique constraints on Conditions Name column.
+        """
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_location,
+            ('NAME', 'description a'), ('NAME', 'description b')
+        )
+
+    def test_location_table_description_unique_constraint(self):
+        """
+        Test unique constraints on Conditions Description column.
+        """
+        self.assertUniqueTableConstraint(
+            self.table_name, database.add_location,
+            ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
+        )
+
 class TestBooksTable(BaseDatabaseModuleTestCase):
     table_name = 'Books'
 
     def setUp(self):
         database.create_database(self.db_path)
+        self.addParentRows()
+
+    def addParentRows(self):
         database.add_author(
             self.db_path, "AuthorFirst", "AuthorMiddle",
             "AuthorLast", "AuthorSuffix"
@@ -442,6 +528,19 @@ class TestBooksTable(BaseDatabaseModuleTestCase):
                 Price, LocationID, isbn)
             ]
         )
+
+    def test_book_table_isbn_unique_constraints(self):
+        """Test unique constraints on Conditions Name and Description columns."""
+        # self.assertUniqueTableConstraint(
+        #     self.table_name, database.add_publisher,
+        #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
+        #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
+        #     ),
+        #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
+        #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
+        #     )
+        # )
+    # ISBN
 
 ### ENTRY POINT ###
 if __name__ == '__main__':
