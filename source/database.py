@@ -1,9 +1,28 @@
 import sqlite3
+from typing import Callable, Any
+from functools import wraps
 
-def create_database(filename):
-    connection = sqlite3.connect(filename)
-    cursor = connection.cursor()
+def db_connection(query_func: Callable[[sqlite3.Cursor], Any]) -> Callable[[str], Any]:
+    @wraps(query_func)
+    def wrapper(filename: str) -> Any:
+        connection = sqlite3.connect(filename)
+        cursor = connection.cursor()
 
+        try:
+            result = query_func(cursor)
+        except sqlite3.Error as error:
+            connection.rollback()
+            raise error
+        finally:
+            connection.commit()
+            cursor.close()
+            connection.close()
+
+        return result
+    return wrapper
+
+@db_connection
+def create_table_authors(cursor: sqlite3.Cursor) -> None:
     # Create Authors table
     cursor.execute('''
         CREATE TABLE Authors (
@@ -15,6 +34,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_publishers(cursor: sqlite3.Cursor):
     # Create Publishers table
     cursor.execute('''
         CREATE TABLE Publishers (
@@ -23,6 +44,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_genrescategories(cursor: sqlite3.Cursor):
     # Create GenresCategories table
     cursor.execute('''
         CREATE TABLE GenresCategories (
@@ -31,6 +54,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_conditions(cursor: sqlite3.Cursor):
     # Create Conditions table
     cursor.execute('''
         CREATE TABLE Conditions (
@@ -40,6 +65,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_locations(cursor: sqlite3.Cursor):
     # Create Locations table
     cursor.execute('''
         CREATE TABLE Locations (
@@ -49,6 +76,8 @@ def create_database(filename):
         )
     ''')
 
+@db_connection
+def create_table_books(cursor: sqlite3.Cursor):
     # Create Books table
     cursor.execute('''
         CREATE TABLE Books (
@@ -58,7 +87,7 @@ def create_database(filename):
             PublisherID     INTEGER NOT NULL,
             GenreID         INTEGER NOT NULL,
             YearPublished   INTEGER,
-            Edition         TEXT,
+            Edition         INTEGER,
             ConditionID     INTEGER NOT NULL,
             Description     TEXT,
             DateAcquired    TEXT,
@@ -73,8 +102,19 @@ def create_database(filename):
         )
     ''')
 
-    connection.commit()
-    connection.close()
+@db_connection
+def create_database(cursor: sqlite3.Cursor):
+
+    def call_unwrapped(func: Callable):
+        func.__wrapped__(cursor)
+
+    call_unwrapped(create_table_authors)
+    call_unwrapped(create_table_publishers)
+    call_unwrapped(create_table_genrescategories)
+    call_unwrapped(create_table_conditions)
+    call_unwrapped(create_table_locations)
+    call_unwrapped(create_table_books)
+
 
 def add_author(filename: str, first: str, middle: str, last: str, suffix: str):
     params = (first, middle, last, suffix)
@@ -115,6 +155,31 @@ def add_location(filename: str, name: str, description: str):
     query = """
             INSERT INTO Locations (Name, Description)
             VALUES (?, ?)
+            """
+    __perform_query(filename, query, params)
+
+def add_book(
+        filename: str, title: str, authorid: int, publisherid: int, genreid: int,
+        yearpublished: str, edition: int, conditionid: int, description: str,
+        dateacquired: str, price: float, locationid: int, isbn: str
+        ):
+    params = (
+        title, authorid, publisherid,
+        genreid, yearpublished, edition,
+        conditionid, description, dateacquired,
+        price, locationid, isbn
+    )
+    query = """
+            INSERT INTO Books (
+                Title, AuthorID, PublisherID,
+                GenreID, YearPublished, Edition,
+                ConditionID, Description, DateAcquired,
+                Price, LocationID, ISBN
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?
+            )
             """
     __perform_query(filename, query, params)
 
