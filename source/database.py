@@ -40,7 +40,7 @@ def create_table_publishers(cursor: sqlite3.Cursor):
     cursor.execute('''
         CREATE TABLE Publishers (
             ID INTEGER PRIMARY KEY,
-            Name TEXT NOT NULL
+            Name TEXT UNIQUE NOT NULL
         )
     ''')
 
@@ -50,7 +50,7 @@ def create_table_genrescategories(cursor: sqlite3.Cursor):
     cursor.execute('''
         CREATE TABLE GenresCategories (
             ID INTEGER PRIMARY KEY,
-            Name TEXT NOT NULL
+            Name TEXT UNIQUE NOT NULL
         )
     ''')
 
@@ -60,8 +60,8 @@ def create_table_conditions(cursor: sqlite3.Cursor):
     cursor.execute('''
         CREATE TABLE Conditions (
             ID INTEGER PRIMARY KEY,
-            Name TEXT NOT NULL,
-            Description TEXT
+            Name TEXT UNIQUE NOT NULL,
+            Description TEXT UNIQUE
         )
     ''')
 
@@ -71,8 +71,8 @@ def create_table_locations(cursor: sqlite3.Cursor):
     cursor.execute('''
         CREATE TABLE Locations (
             ID INTEGER PRIMARY KEY,
-            Name TEXT NOT NULL,
-            Description TEXT
+            Name TEXT UNIQUE NOT NULL,
+            Description TEXT UNIQUE
         )
     ''')
 
