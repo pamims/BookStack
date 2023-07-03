@@ -286,13 +286,13 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 class TitleTableTestCase(BaseDatabaseModuleTestCase):
     """
     Tests for validating Title table function. Titles must be inserted
-    correctly with correct auto-incrementing ID's. Title name should NOT
-    be UNIQUE.
+    correctly with correct auto-incrementing ID's. Title name should be
+    NOT NULL, and it should NOT have UNIQUE constraint.
     """
     table_name = 'Title'
+    insert_func = database.insert_title
 
     def setUp(self):
-        print('wtf')
         """Create title table for testing."""
         database.create_table_title(self.db_path)
 
@@ -300,18 +300,56 @@ class TitleTableTestCase(BaseDatabaseModuleTestCase):
         """Verifies insert_publisher() creates a valid record."""
         params_list = [(f'Name{i}', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_list
+            self.table_name, self.insert_func, params_list
         )
 
-    def test_title_no_unique_constraint(self):
+    def test_title_name_not_unique_constraint(self):
         """Verifies no unique constraint on title Name field."""
         params_list = [(f'Name', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_list
+            self.table_name, self.insert_func, params_list
         )
 
+    def test_title_name_not_null_constraint(self):
+        """Verifies not null constraint on title Name field."""
+        params_list = [(None, )]
+        self.assertNotNullTableConstraints(
+            self.table_name, self.insert_func, params_list
+        )
 
+class GenreTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Genre table function. Genres must be inserted
+    correctly with correct auto-incrementing ID's. Title name should
+    be UNIQUE and NOT NULL.
+    """
+    table_name = 'Genre'
+    insert_func = database.insert_genre
 
+    def setUp(self):
+        """Create genre table for testing."""
+        database.create_table_genre(self.db_path)
+
+    def test_genre_insert_record_creation(self):
+        """Verifies insert_genre() creates a valid record."""
+        params_list = [(f'Name{i}', ) for i in range(1, 10)]
+        self.assertCorrectRecordInsertion(
+            self.table_name, self.insert_func, params_list
+        )
+
+    def test_genre_name_unique_constraint(self):
+        """Verifies unique constraint on the genre name field."""
+        params_list = [('Name', ), ('Name', )]
+        self.assertUniqueTableConstraint(
+            self.table_name, self.insert_func, params_list
+        )
+
+    def test_genre_name_not_null_constraint(self):
+        """Verifies not null constraint on genre name field."""
+        params_list = [(None, )]
+        self.assertNotNullTableConstraints(
+            self.table_name, self.insert_func, params_list
+        )
 # class TestAuthorsTable(BaseDatabaseModuleTestCase):
 #     table_name = 'Authors'
 
