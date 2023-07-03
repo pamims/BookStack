@@ -259,17 +259,16 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             "the number of columns that are supposed to be in the table."
         )
         # make sure exactly one item in each parameter list is the same
-        matched_item = None
-        count_matches = 0
+        matched_items = []
         for a, b in zip(a_params, b_params):
             if a == b:
-                count_matches += 1
-                matched_item = a # and b
-        assert count_matches == 1, (
-            "To check UNIQUE constraints properly, the parameter lists must "
-            "contain exactly one item in common. The particular value being "
-            "tested should be the common item."
+                matched_items.append((a, b))
+        assert len(matched_items) == 1, (
+            f"To check UNIQUE constraints properly, the parameter lists must "
+            f"contain exactly one item in common. The particular value being "
+            f"tested should be the common item. Pairs found: {matched_items}"
         )
+        matched_item = matched_items[0][0]
         column_index = a_params.index(matched_item) + 1
         column_tested = column_names[column_index]
         msg = f"{table_name} [{column_tested}] UNIQUE constraint fails."
@@ -451,7 +450,7 @@ class ConditionTableTestCase(BaseDatabaseModuleTestCase):
         Verifies not null constraints on condition name and description fields.
         """
         params_tuple = ((None, 'Description'), ('Name', None))
-        self.assertUniqueTableConstraint(
+        self.assertNotNullTableConstraints(
             self.table_name, database.insert_condition, params_tuple
         )
 

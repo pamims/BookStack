@@ -2,6 +2,8 @@ import sqlite3
 from typing import Callable, Any
 from functools import wraps
 
+# Connection Handling Decorator
+
 def db_connection(
         query_func: Callable[[sqlite3.Cursor, tuple[Any, ...]], Any]
 ) -> Callable[[str, tuple[Any]], Any]:
@@ -22,6 +24,8 @@ def db_connection(
 
         return result
     return wrapper
+
+# Table Creation Functions
 
 @db_connection
 def create_table_title(cursor: sqlite3.Cursor) -> None:
@@ -72,6 +76,22 @@ def create_table_publisher(cursor: sqlite3.Cursor) -> None:
     )
 
 @db_connection
+def create_table_condition(cursor: sqlite3.Cursor) -> None:
+    """Create publisher table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Condition (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT UNIQUE NOT NULL,
+            Description TEXT UNIQUE NOT NULL
+        )
+        '''
+    )
+
+
+# Insertion Functions
+
+@db_connection
 def insert_title(cursor: sqlite3.Cursor, *args):
     """Insert record into title table."""
     cursor.execute(
@@ -108,6 +128,16 @@ def insert_publisher(cursor: sqlite3.Cursor, *args):
         '''
         INSERT INTO Publisher (Name)
         VALUES (?)
+        ''', args
+    )
+
+@db_connection
+def insert_condition(cursor: sqlite3.Cursor, *args):
+    """Insert record into condition table."""
+    cursor.execute(
+        '''
+        INSERT INTO Condition (Name, Description)
+        VALUES (?, ?)
         ''', args
     )
 
