@@ -48,6 +48,30 @@ def create_table_genre(cursor: sqlite3.Cursor) -> None:
     )
 
 @db_connection
+def create_table_format(cursor: sqlite3.Cursor) -> None:
+    """Create format table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Format (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT UNIQUE NOT NULL
+        )
+        '''
+    )
+
+@db_connection
+def create_table_publisher(cursor: sqlite3.Cursor) -> None:
+    """Create publisher table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Publisher (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT UNIQUE NOT NULL
+        )
+        '''
+    )
+
+@db_connection
 def insert_title(cursor: sqlite3.Cursor, *args):
     """Insert record into title table."""
     cursor.execute(
@@ -63,6 +87,26 @@ def insert_genre(cursor: sqlite3.Cursor, *args):
     cursor.execute(
         '''
         INSERT INTO Genre (Name)
+        VALUES (?)
+        ''', args
+    )
+
+@db_connection
+def insert_format(cursor: sqlite3.Cursor, *args):
+    """Insert record into format table."""
+    cursor.execute(
+        '''
+        INSERT INTO Format (Name)
+        VALUES (?)
+        ''', args
+    )
+
+@db_connection
+def insert_publisher(cursor: sqlite3.Cursor, *args):
+    """Insert record into format table."""
+    cursor.execute(
+        '''
+        INSERT INTO Publisher (Name)
         VALUES (?)
         ''', args
     )

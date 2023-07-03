@@ -392,21 +392,21 @@ class PublisherTableTestCase(BaseDatabaseModuleTestCase):
         """Create publisher table for testing."""
         database.create_table_publisher(self.db_path)
 
-    def test_format_insert_record_creation(self):
+    def test_publisher_insert_record_creation(self):
         """Verifies insert_publisher() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
             self.table_name, database.insert_publisher, params_tuple
         )
 
-    def test_format_name_unique_constraint(self):
+    def test_publisher_name_unique_constraint(self):
         """Verifies unique constraint on the publisher name field."""
         params_tuple = (('Name', ), ('Name', ))
         self.assertUniqueTableConstraint(
             self.table_name, database.insert_publisher, params_tuple
         )
 
-    def test_format_name_not_null_constraint(self):
+    def test_publisher_name_not_null_constraint(self):
         """Verifies not null constraint on publisher name field."""
         params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
