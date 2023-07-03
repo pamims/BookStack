@@ -380,6 +380,39 @@ class FormatTableTestCase(BaseDatabaseModuleTestCase):
             self.table_name, database.insert_format, params_tuple
         )
 
+class PublisherTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Publisher table function. Publishers must be inserted
+    correctly with correct auto-incrementing ID's. Publisher name should
+    be UNIQUE and NOT NULL.
+    """
+    table_name = 'Publisher'
+
+    def setUp(self):
+        """Create publisher table for testing."""
+        database.create_table_publisher(self.db_path)
+
+    def test_format_insert_record_creation(self):
+        """Verifies insert_publisher() creates a valid record."""
+        params_tuple = ((f'Name{i}', ) for i in range(1, 10))
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_publisher, params_tuple
+        )
+
+    def test_format_name_unique_constraint(self):
+        """Verifies unique constraint on the publisher name field."""
+        params_tuple = (('Name', ), ('Name', ))
+        self.assertUniqueTableConstraint(
+            self.table_name, database.insert_publisher, params_tuple
+        )
+
+    def test_format_name_not_null_constraint(self):
+        """Verifies not null constraint on publisher name field."""
+        params_tuple = ((None, ), )
+        self.assertNotNullTableConstraints(
+            self.table_name, database.insert_publisher, params_tuple
+        )
+
 
 
 
