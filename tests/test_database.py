@@ -464,7 +464,7 @@ class AuthorTableTestCase(BaseDatabaseModuleTestCase):
 
     def setUp(self):
         """Create author table for testing."""
-        database.create_table_author()
+        database.create_table_author(self.db_path)
 
     def test_author_insert_record_creation(self):
         """Verifies insert_author() creates a valid record."""

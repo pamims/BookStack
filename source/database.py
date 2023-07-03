@@ -88,6 +88,22 @@ def create_table_condition(cursor: sqlite3.Cursor) -> None:
         '''
     )
 
+@db_connection
+def create_table_author(cursor: sqlite3.Cursor) -> None:
+    """Create author table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Author (
+            ID INTEGER PRIMARY KEY,
+            Prefix TEXT NULLABLE,
+            First TEXT NOT NULL,
+            Middle TEXT NULLABLE,
+            Last TEXT NULLABLE,
+            Suffix TEXT NULLABLE
+        )
+        '''
+    )
+
 
 # Insertion Functions
 
@@ -138,6 +154,16 @@ def insert_condition(cursor: sqlite3.Cursor, *args):
         '''
         INSERT INTO Condition (Name, Description)
         VALUES (?, ?)
+        ''', args
+    )
+
+@db_connection
+def insert_author(cursor: sqlite3.Cursor, *args):
+    """Insert record into author table."""
+    cursor.execute(
+        '''
+        INSERT INTO Author (Prefix, First, Middle, Last, Suffix)
+        VALUES (?, ?, ?, ?, ?)
         ''', args
     )
 
