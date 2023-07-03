@@ -454,6 +454,64 @@ class ConditionTableTestCase(BaseDatabaseModuleTestCase):
             self.table_name, database.insert_condition, params_tuple
         )
 
+class AuthorTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Author table function. Authors must be inserted
+    correctly with auto-incrementing ID's. Author First[Name] must be NOT NULL.
+    Author Prefix, Middle, Last, and Suffix must be NULLABLE.
+    """
+    table_name = 'Author'
+
+    def setUp(self):
+        """Create author table for testing."""
+        database.create_table_author()
+
+    def test_author_insert_record_creation(self):
+        """Verifies insert_author() creates a valid record."""
+        params_tuple = (
+            (f'Prefix{i}', f'First{i}', f'Middle{i}', f'Last{i}', f'Suffix{i}')
+            for i in range(1, 10)
+        )
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+    def test_author_first_not_null_constraint(self):
+        """Verifies not null constraint on author first field."""
+        params_tuple = (('Prefix', None, 'Middle', 'Last', 'Suffix'), )
+        self.assertNotNullTableConstraints(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+    def test_author_prefix_nullable_constraint(self):
+        """Verifies author prefix field nullable."""
+        params_tuple = ((None, 'First', 'Middle', 'Last', 'Suffix'), )
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+    def test_author_middle_nullable_constraint(self):
+        """Verifies author middle field nullable."""
+        params_tuple = (('Prefix', 'First', None, 'Last', 'Suffix'), )
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+    def test_author_last_nullable_constraint(self):
+        """Verifies author last field nullable."""
+        params_tuple = (('Prefix', 'First', 'Middle', None, 'Suffix'), )
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+    def test_author_suffix_nullable_constraint(self):
+        """Verifies author suffix field nullable."""
+        params_tuple = (('Prefix', 'First', 'Middle', 'Last', None), )
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_author, params_tuple
+        )
+
+
 
 
 
