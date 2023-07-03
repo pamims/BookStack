@@ -37,13 +37,11 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         """Builds database, establishes connection, and sets cursor."""
-        #print(f"\nsetUpClass() called: {cls.__name__}\n")
         cls.openDatabaseConnection()
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Closes database connection and removes test database file."""
-        #print(f"\ntearDownClass() called: {cls.__name__}\n")
         cls.closeDatabaseConnection()
         cls.removeDatabaseFile()
 
@@ -233,12 +231,10 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             # get the name of the column being tested
             col_index = params.index(None) + 1 # accounts for ID column
             column_tested = column_names[col_index]
-            # get the args to send to the insert_row_func
-            args = (self.db_path, ) + params
             # generate the failure message
             msg = f"{table_name} [{column_tested}] NOT NULL constraint fails."
             with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
-                insert_row_func(*args)
+                insert_row_func(self.db_path, *params)
             error_msg = str(ctx.exception)
             self.assertIn("NOT NULL constraint failed", error_msg, msg)
 
@@ -271,13 +267,10 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         )
         column_index = a_params.index(matched_item) + 1
         column_tested = column_names[column_index]
-        filename = (self.db_path, )
-        a_args = filename + a_params
-        b_args = filename + b_params
         msg = f"{table_name} [{column_tested}] UNIQUE constraint fails."
         with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
-            insert_row_func(*a_args)
-            insert_row_func(*b_args)
+            insert_row_func(self.db_path, *a_params)
+            insert_row_func(self.db_path, *b_params)
         error_msg = str(ctx.exception)
         self.assertIn("UNIQUE constraint failed", error_msg, msg)
 
@@ -290,7 +283,6 @@ class TitleTableTestCase(BaseDatabaseModuleTestCase):
     NOT NULL, and it should NOT have UNIQUE constraint.
     """
     table_name = 'Title'
-    insert_func = database.insert_title
 
     def setUp(self):
         """Create title table for testing."""
@@ -300,21 +292,21 @@ class TitleTableTestCase(BaseDatabaseModuleTestCase):
         """Verifies insert_publisher() creates a valid record."""
         params_list = [(f'Name{i}', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_title, params_list
         )
 
     def test_title_name_not_unique_constraint(self):
         """Verifies no unique constraint on title Name field."""
         params_list = [(f'Name', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_title, params_list
         )
 
     def test_title_name_not_null_constraint(self):
         """Verifies not null constraint on title Name field."""
         params_list = [(None, )]
         self.assertNotNullTableConstraints(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_title, params_list
         )
 
 class GenreTableTestCase(BaseDatabaseModuleTestCase):
@@ -324,7 +316,6 @@ class GenreTableTestCase(BaseDatabaseModuleTestCase):
     be UNIQUE and NOT NULL.
     """
     table_name = 'Genre'
-    insert_func = database.insert_genre
 
     def setUp(self):
         """Create genre table for testing."""
@@ -334,21 +325,20 @@ class GenreTableTestCase(BaseDatabaseModuleTestCase):
         """Verifies insert_genre() creates a valid record."""
         params_list = [(f'Name{i}', ) for i in range(1, 10)]
         self.assertCorrectRecordInsertion(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_genre, params_list
         )
 
     def test_genre_name_unique_constraint(self):
         """Verifies unique constraint on the genre name field."""
-        params_list = [('Name', ), ('Name', )]
         self.assertUniqueTableConstraint(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_genre, ('Name', ), ('Name', )
         )
 
     def test_genre_name_not_null_constraint(self):
         """Verifies not null constraint on genre name field."""
         params_list = [(None, )]
         self.assertNotNullTableConstraints(
-            self.table_name, self.insert_func, params_list
+            self.table_name, database.insert_genre, params_list
         )
 # class TestAuthorsTable(BaseDatabaseModuleTestCase):
 #     table_name = 'Authors'

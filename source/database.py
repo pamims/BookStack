@@ -36,10 +36,33 @@ def create_table_title(cursor: sqlite3.Cursor) -> None:
     )
 
 @db_connection
+def create_table_genre(cursor: sqlite3.Cursor) -> None:
+    """Create genre table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Genre (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT UNIQUE NOT NULL
+        )
+        '''
+    )
+
+@db_connection
 def insert_title(cursor: sqlite3.Cursor, *args):
+    """Insert record into title table."""
     cursor.execute(
         '''
         INSERT INTO Title (Name)
+        VALUES (?)
+        ''', args
+    )
+
+@db_connection
+def insert_genre(cursor: sqlite3.Cursor, *args):
+    """Insert record into genre table."""
+    cursor.execute(
+        '''
+        INSERT INTO Genre (Name)
         VALUES (?)
         ''', args
     )
