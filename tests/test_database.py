@@ -162,7 +162,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertCorrectRecordInsertion(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_list: list[tuple[Optional[str]]]
+            params_tuple: tuple[tuple[Optional[str]]]
     ) -> None:
         """
         Asserts correct table insertion. Includes:
@@ -173,7 +173,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         """
         self.validateTableName(table_name, self.db_required_tables)
         self.validateCursor()
-        for params in params_list:
+        for params in params_tuple:
             try:
                 insert_row_func(self.db_path, *params)
             except Exception as e:
@@ -181,7 +181,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
         self.cursor.execute(f"SELECT * FROM {table_name}")
         id = 0
-        for params in params_list:
+        for params in params_tuple:
             assert len(params) == len(set(params)), (
                 "Cannot assert correct record insertion. Cannot verify "
                 "correct order of parameters because multiple parameters have "
@@ -209,14 +209,14 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertNotNullTableConstraints(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_list: list[tuple[Optional[str]]]
+            params_tuple: tuple[tuple[Optional[str]]]
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         try:
             column_names = self.getTableColumnNames(table_name)
         except self.DatabaseError as e: # could raise either one
             self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
-        for params in params_list:
+        for params in params_tuple:
             # make sure only one None is in the parameters
             assert params.count(None) == 1, (
                 "To check NOT NULL constraints properly, every parameter "
@@ -240,9 +240,14 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertUniqueTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
-            a_params: tuple[Optional[str]], b_params: tuple[Optional[str]]
+            params_tuple: tuple[tuple[Optional[str]]]
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
+        assert len(params_tuple) == 2, (
+            "Wrong number of parameter sets. To assert unique table "
+            "constraints, exactly two parameter sets must be given."
+        )
+        a_params, b_params = params_tuple
         try:
             column_names = self.getTableColumnNames(table_name)
         except self.DatabaseError as e: # could raise either one
@@ -290,23 +295,23 @@ class TitleTableTestCase(BaseDatabaseModuleTestCase):
 
     def test_title_insert_record_creation(self):
         """Verifies insert_publisher() creates a valid record."""
-        params_list = [(f'Name{i}', ) for i in range(1, 10)]
+        params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_list
+            self.table_name, database.insert_title, params_tuple
         )
 
     def test_title_name_not_unique_constraint(self):
         """Verifies no unique constraint on title Name field."""
-        params_list = [(f'Name', ) for i in range(1, 10)]
+        params_tuple = ((f'Name', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_list
+            self.table_name, database.insert_title, params_tuple
         )
 
     def test_title_name_not_null_constraint(self):
         """Verifies not null constraint on title Name field."""
-        params_list = [(None, )]
+        params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_title, params_list
+            self.table_name, database.insert_title, params_tuple
         )
 
 class GenreTableTestCase(BaseDatabaseModuleTestCase):
@@ -323,23 +328,66 @@ class GenreTableTestCase(BaseDatabaseModuleTestCase):
 
     def test_genre_insert_record_creation(self):
         """Verifies insert_genre() creates a valid record."""
-        params_list = [(f'Name{i}', ) for i in range(1, 10)]
+        params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_genre, params_list
+            self.table_name, database.insert_genre, params_tuple
         )
 
     def test_genre_name_unique_constraint(self):
         """Verifies unique constraint on the genre name field."""
+        params_tuple = (('Name', ), ('Name', ))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_genre, ('Name', ), ('Name', )
+            self.table_name, database.insert_genre, params_tuple
         )
 
     def test_genre_name_not_null_constraint(self):
         """Verifies not null constraint on genre name field."""
-        params_list = [(None, )]
+        params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_genre, params_list
+            self.table_name, database.insert_genre, params_tuple
         )
+
+class FormatTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Format table function. Formats must be inserted
+    correctly with correct auto-incrementing ID's. Format name should
+    be UNIQUE and NOT NULL.
+    """
+    table_name = 'Format'
+
+    def setUp(self):
+        """Create format table for testing."""
+        database.create_table_format(self.db_path)
+
+    def test_format_insert_record_creation(self):
+        """Verifies insert_format() creates a valid record."""
+        params_tuple = ((f'Name{i}', ) for i in range(1, 10))
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_format, params_tuple
+        )
+
+    def test_format_name_unique_constraint(self):
+        """Verifies unique constraint on the format name field."""
+        params_tuple = (('Name', ), ('Name', ))
+        self.assertUniqueTableConstraint(
+            self.table_name, database.insert_format, params_tuple
+        )
+
+    def test_format_name_not_null_constraint(self):
+        """Verifies not null constraint on format name field."""
+        params_tuple = ((None, ), )
+        self.assertNotNullTableConstraints(
+            self.table_name, database.insert_format, params_tuple
+        )
+
+
+
+
+
+
+
+
+
 # class TestAuthorsTable(BaseDatabaseModuleTestCase):
 #     table_name = 'Authors'
 
