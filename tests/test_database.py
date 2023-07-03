@@ -413,6 +413,48 @@ class PublisherTableTestCase(BaseDatabaseModuleTestCase):
             self.table_name, database.insert_publisher, params_tuple
         )
 
+class ConditionTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Tests for validating Condition table function. Conditions must be inserted
+    correctly with auto-incrementing ID's. Condition names and descriptions
+    must be NOT NULL and UNIQUE.
+    """
+    table_name = 'Condition'
+
+    def setUp(self):
+        """Create condition table for testing."""
+        database.create_table_condition(self.db_path)
+
+    def test_condition_insert_record_function(self):
+        """Verifies insert_condition() creates a valid record."""
+        params_tuple = ((f'Name{i}', f'Description{i}') for i in range(1, 10))
+        self.assertCorrectRecordInsertion(
+            self.table_name, database.insert_condition, params_tuple
+        )
+
+    def test_condition_name_unique_constraint(self):
+        """Verifies unique constraint on condition name field."""
+        params_tuple = (('Name', 'Description1'), ('Name', 'Description2'))
+        self.assertUniqueTableConstraint(
+            self.table_name, database.insert_condition, params_tuple
+        )
+
+    def test_condition_description_unique_constraint(self):
+        """Verifies unique constraint on condition description field."""
+        params_tuple = (('Name1', 'Description'), ('Name2', 'Description'))
+        self.assertUniqueTableConstraint(
+            self.table_name, database.insert_condition, params_tuple
+        )
+
+    def test_condition_name_and_description_not_null_constraints(self):
+        """
+        Verifies not null constraints on condition name and description fields.
+        """
+        params_tuple = ((None, 'Description'), ('Name', None))
+        self.assertUniqueTableConstraint(
+            self.table_name, database.insert_condition, params_tuple
+        )
+
 
 
 
