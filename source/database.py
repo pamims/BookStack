@@ -121,13 +121,13 @@ def create_table_titleauthor(cursor: sqlite3.Cursor) -> None:
             ID INTEGER PRIMARY KEY,
             TitleID INTEGER,
             AuthorID INTEGER,
-            UNIQUE (TitleID, AuthorID),
             FOREIGN KEY (TitleID) REFERENCES Title(ID),
             FOREIGN KEY (AuthorID) REFERENCES Author(ID)
         )
         '''
     )
 
+#            UNIQUE (TitleID, AuthorID),
 
 # Insertion Functions
 

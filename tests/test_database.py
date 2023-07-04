@@ -242,13 +242,20 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertUniqueTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]]], num_items: int = 1
+            params_tuple: tuple[tuple[Optional[str]], tuple[Optional[str]]],
+            num_items: int = 1
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         assert len(params_tuple) == 2, (
             "Wrong number of parameter sets. To assert unique table "
             "constraints, exactly two parameter sets must be given."
         )
+        for params in params_tuple:
+            assert len(params) == len(set(params)), (
+                f"Ensure no two parameters in a single record are the same. "
+                f"Received: {params}, "
+                f"{', '.join(' == '.join([str(p)] * 2) for p in set(params))}"
+            )
         a_params, b_params = params_tuple
         try:
             column_names = self.getTableColumnNames(table_name)
@@ -260,21 +267,26 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             "Number of parameters for the insertion call does not match "
             "the number of columns that are supposed to be in the table."
         )
-        # make sure exactly one item in each parameter list is the same
+        # make sure exactly num_item item(s) in each parameter list is the same
         matched_items = []
-        for a, b in zip(a_params, b_params):
+        param_pairs = tuple(zip(a_params, b_params))
+        for a, b in param_pairs:
             if a == b:
                 matched_items.append((a, b))
         assert len(matched_items) == num_items, (
             f"To check UNIQUE constraints properly, the parameter lists must "
             f"contain exactly {num_items} item(s) in common. The particular "
-            f"value being tested should be the common item. Matching items: "
-            f"{matched_items}"
+            f"value being tested should be the common item.\nMatching items: "
+            f"{'None' if len(matched_items) == 0 else matched_items}, \n"
+            f"First set: {a_params}\nSecond set: {b_params}\n"
+            f"{', '.join([str(a) + ' != ' + str(b) for a, b in param_pairs])}"
         )
-        matched_item = matched_items[0][0]
-        column_index = a_params.index(matched_item) + 1
-        column_tested = column_names[column_index]
-        msg = f"{table_name} [{column_tested}] UNIQUE constraint fails."
+        # get the indices of each match
+        column_indices = [
+            a_params.index(match[0]) + 1 for match in matched_items
+        ]
+        columns_tested = tuple(column_names[i] for i in column_indices)
+        msg = f"{table_name} [{columns_tested}] UNIQUE constraint fails."
         with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
             insert_row_func(self.db_path, *a_params)
             insert_row_func(self.db_path, *b_params)
@@ -614,7 +626,6 @@ class BaseDependentTableTestCase(BaseTableTestCase):
         self.cursor.execute("PRAGMA foreign_keys = ON")
         # Make all the tables -- establish test environment.
         for create_table_func in self.create_table_funcs:
-            print("\n" + str(create_table_func) + ": " + self.db_path + "\n")
             create_table_func(self.db_path)
         # Make 5 insertions in each table.
         for i in range(1, 6):
@@ -662,20 +673,26 @@ class AuthorTitleTableTestCase(BaseDependentTableTestCase):
         author_ids = self.getValidRecordIDs('Author')
         author_ids = author_ids[-1:] + author_ids[:-1]
         params_list = tuple(zip(title_ids, author_ids))
-        print(params_list)
         self.assertCorrectRecordInsertion(
             self.table_name, self.insert_function, params_list
         )
 
     def test_author_title_authorid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleID, AuthorID pairs"""
-        title_ids = self.getValidRecordIDs('Title')[:1] * 2
-        author_ids = self.getValidRecordIDs('Author')[:1] * 2
-        params_list = tuple(zip(title_ids, author_ids))
-        print(params_list[:2])
+        title_ids = self.getValidRecordIDs('Title')[:2] * 2
+        author_ids = self.getValidRecordIDs('Author')[3:5] * 2
+        params_list = tuple(zip(title_ids, author_ids))[:2]
         self.assertUniqueTableConstraint(
             self.table_name, self.insert_function, params_list, 2
         )
+
+
+class WorkTableTestCase(BaseDependentTableTestCase):
+    """
+    Tests for validating Work table function. Work must be inserted correctly
+    with auto-incrementing ID's. Each (TitleAuthorID, GenreID) combination must
+    be unique, and they must have FOREIGN KEY constraints.
+    """
 
 
 
