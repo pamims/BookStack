@@ -338,44 +338,39 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         The function is based on the defined table_name and the
         create_table_functions dictionary.
         """
-        # Verify all the keys are correct
         super().__init__(methodName)
-        if self.table_name not in self.db_insert_functions:
-            self.insert_function = lambda *_: self.fail(
-                f"Cannot insert record. '{self.table_name}' is not defined in "
-                f"db_insert_functions dictionary. Available keys are: "
-                f"{', '.join(self.db_create_table_functions.keys())}"
-            )
-            return
-        # Grab the function
-        self.insert_function = self.db_insert_functions[self.table_name]
-        # Fail if function is none
-        if self.insert_function is None:
-            self.insert_function = lambda *_: self.fail(
-                f"'{self.table_name}' insertion function has not been added to"
-                f" the db_insert_functions dictionary."
-            )
+        self.insert_function = self.getTableFunctionFromDictionary(
+            self.table_name, self.db_insert_functions
+        )
 
     def setUp(self) -> None:
         """Create necessary table for testing based on table_name."""
-        # Fail if table is not in the dictionary.
-        if self.table_name not in self.db_create_table_functions:
-            self.fail(
-                f"Cannot create table. '{self.table_name}' is not defined in "
-                f"db_create_table_functions dictionary. Available keys are: "
-                f"{', '.join(self.db_create_table_functions.keys())}"
-            )
-        # Get the function from the dictionary based on table name
-        create_table: Callable[[str, tuple[Any, ...]], Any] = (
-            self.db_create_table_functions[self.table_name]
+        create_table = self.getTableFunctionFromDictionary(
+            self.table_name, self.db_create_table_functions
         )
-        # Fail if the function hasn't been added to the dictionary yet.
-        if create_table is None:
-            self.fail(
-                f"'{self.table_name}' table creation function has not been "
-                f"added to the db_create_table_functions dictionary."
-            )
         create_table(self.db_path)
+
+    def getTableFunctionFromDictionary(
+            self: BaseDatabaseModuleTestCase, table_name: str,
+            dictionary: dict[str, Callable[[str, tuple[Any, ...]], Any]]
+    ) -> Callable[[str, tuple[Any, ...]], Any]:
+        if table_name not in dictionary:
+            self.fail(
+                f"Cannot locate function. '{table_name}' is not defined in "
+                f"the provided dictionary. Available keys are: "
+                f"{', '.join(dictionary)}"
+            )
+        func: Callable[[str, tuple[Any, ...]], Any] = (
+            dictionary[table_name]
+        )
+        if func is None:
+            self.fail(
+                f"'{table_name}' table function has not been added to the "
+                f"provided dictionary. Verify function exists and add it to "
+                f"the appropriate dictionary."
+        )
+        return func
+
 
 class TitleTableTestCase(BaseTableTestCase):
     """
@@ -583,6 +578,15 @@ class AuthorTableTestCase(BaseTableTestCase):
         self.assertCorrectRecordInsertion(
             self.table_name, self.insert_function, params_tuple
         )
+
+
+# class BaseDependentTableTestCase(BaseTableTestCase):
+#     referenced_table_names = []
+
+    #for name in referenced_table_names:
+
+
+    #def setUp(self):
 
 
 
