@@ -282,7 +282,102 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
 ### TEST CASES ###
 
-class TitleTableTestCase(BaseDatabaseModuleTestCase):
+class BaseTableTestCase(BaseDatabaseModuleTestCase):
+    """
+    Base class for test cases where a single table must exist before the test
+    can be performed. This class allows all child class tests to be updated
+    from a single location. Ex. if an insertion function is renamed, it only
+    needs to be renamed in the db_insert_functions dictionary.
+
+    __init__, self.insert_function --
+    The __init__ function detects which insert function the child class needs
+    by looking at the value of table_name and retrieving the function from the
+    db_insert_functions dictionary. The value is then stored in
+    self.insert_function.
+
+    setUp --
+    The setUp function similarly decides which create_table_* function to call
+    at the beginning of each test.
+    """
+    db_insert_functions = {
+        'Title'     : database.insert_title,
+        'Author'    : database.insert_author,
+        'Genre'     : database.insert_genre,
+        'TitleAuthor' : None,
+        'Work'      : None,
+
+        'Format'    : database.insert_format,
+        'Publisher' : database.insert_publisher,
+        'Publication' : None,
+
+        'Condition' : database.insert_condition,
+        'Location'  : None,
+        'Book'      : None
+    }
+    db_create_table_functions = {
+        'Title'     : database.create_table_title,
+        'Author'    : database.create_table_author,
+        'Genre'     : database.create_table_genre,
+        'TitleAuthor' : None,
+        'Work'      : None,
+
+        'Format'    : database.create_table_format,
+        'Publisher' : database.create_table_publisher,
+        'Publication' : None,
+
+        'Condition' : database.create_table_condition,
+        'Location'  : None,
+        'Book'      : None
+    }
+    table_name = None
+
+    def __init__(self, methodName: str = "runTest"):
+        """
+        Sets the create_table_function to be called during setUp. Function will
+        be a failure function if a problem occurs with retrieving the function.
+        The function is based on the defined table_name and the
+        create_table_functions dictionary.
+        """
+        # Verify all the keys are correct
+        super().__init__(methodName)
+        if self.table_name not in self.db_insert_functions:
+            self.insert_function = lambda *_: self.fail(
+                f"Cannot insert record. '{self.table_name}' is not defined in "
+                f"db_insert_functions dictionary. Available keys are: "
+                f"{', '.join(self.db_create_table_functions.keys())}"
+            )
+            return
+        # Grab the function
+        self.insert_function = self.db_insert_functions[self.table_name]
+        # Fail if function is none
+        if self.insert_function is None:
+            self.insert_function = lambda *_: self.fail(
+                f"'{self.table_name}' insertion function has not been added to"
+                f" the db_insert_functions dictionary."
+            )
+
+    def setUp(self) -> None:
+        """Create necessary table for testing based on table_name."""
+        # Fail if table is not in the dictionary.
+        if self.table_name not in self.db_create_table_functions:
+            self.fail(
+                f"Cannot create table. '{self.table_name}' is not defined in "
+                f"db_create_table_functions dictionary. Available keys are: "
+                f"{', '.join(self.db_create_table_functions.keys())}"
+            )
+        # Get the function from the dictionary based on table name
+        create_table: Callable[[str, tuple[Any, ...]], Any] = (
+            self.db_create_table_functions[self.table_name]
+        )
+        # Fail if the function hasn't been added to the dictionary yet.
+        if create_table is None:
+            self.fail(
+                f"'{self.table_name}' table creation function has not been "
+                f"added to the db_create_table_functions dictionary."
+            )
+        create_table(self.db_path)
+
+class TitleTableTestCase(BaseTableTestCase):
     """
     Tests for validating Title table function. Titles must be inserted
     correctly with correct auto-incrementing ID's. Title name should be
