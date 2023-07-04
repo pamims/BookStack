@@ -20,7 +20,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         'Publication' : ['ID', 'WorkID', 'FormatID', 'PublisherID', 'ISBN'],
 
         'Condition' : ['ID', 'Name', 'Description'],
-        'Location'  : ['ID', 'ParentLocationID', 'Name', 'Description'],
+        'Location'  : ['ID', 'LocationID', 'Name', 'Description'],
         'Book'      : ['ID', 'PublicationID', 'ConditionID', 'LocationID']
     }
 
@@ -580,10 +580,67 @@ class AuthorTableTestCase(BaseTableTestCase):
         )
 
 
-# class BaseDependentTableTestCase(BaseTableTestCase):
-#     referenced_table_names = []
+class BaseDependentTableTestCase(BaseTableTestCase):
+    """
+    Base class for test cases where multiple tables must exist prior to running
+    tests.
+    """
+    referenced_table_names: tuple[str] = ()
 
-    #for name in referenced_table_names:
+    def __init__(self, methodName: str = "runTest"):
+        super().__init__(methodName)
+        self.create_table_funcs = (
+            self.getTableFunctionFromDictionary(
+                name, self.db_create_table_functions
+            )
+            for name in self.referenced_table_names
+        )
+        self.insert_funcs = (
+            self.getTableFunctionFromDictionary(
+                name, self.db_insert_functions
+            )
+            for name in self.referenced_table_names
+        )
+
+    def setUp(self):
+        # Create the test table.
+        super().setUp()
+        # Turn foreign keys on.
+        self.cursor.execute("PRAGMA foreign_keys = ON")
+        # Make all the tables -- establish test environment.
+        for create_table_func in self.create_table_funcs:
+            create_table_func(self.db_path)
+        # Make 5 insertions in each table.
+        for i in range(1, 6):
+            for table_name, insert_func in zip(
+                self.referenced_table_names, self.insert_funcs
+            ):
+                # Need to know the column names to generate input.
+                column_names = self.getTableColumnNames(table_name)
+                params = (
+                    i if 'ID' in column_name else column_name + str(i)
+                    for column_name in column_names[1:] # don't want ID cplumn
+                )
+                try:
+                    insert_func(self.db_path, *params)
+                except sqlite3.IntegrityError as e:
+                    err_msg = str(e)
+                    if "FOREIGN KEY constraint failed" in err_msg:
+                        self.fail(
+                            "Check the order that table names are defined in "
+                            "the referenced_table_names tuple. Referenced "
+                            "tables must be listed before dependent tables."
+                        )
+
+
+class TestTestTest(BaseDependentTableTestCase):
+        table_name = 'AuthorTitle'
+        referenced_table_names = (
+            'Title', 'Publisher', 'Genre', 'Format', 'Author', 'Condition'
+        )
+
+        def test_does_this_work(self) -> None:
+            pass
 
 
     #def setUp(self):
