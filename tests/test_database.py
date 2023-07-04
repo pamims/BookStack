@@ -119,8 +119,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             return [] # no columns in table that doesn't exist
         cls.cursor.execute(f"PRAGMA table_info({table_name})")
         result = cls.cursor.fetchall()
-        column_names = [row[1] for row in result]
-        return column_names
+        if result is not None:
+            result = [row[1] for row in result]
+        return result
 
     @classmethod
     def getValidRecordIDs(cls, table_name: str) -> Optional[list[int]]:
