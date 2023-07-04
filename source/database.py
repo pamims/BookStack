@@ -1,12 +1,12 @@
 import sqlite3
-from typing import Callable, Any
+from typing import Callable, Union, Any
 from functools import wraps
 
 # Connection Handling Decorator
 
 def db_connection(
         query_func: Callable[[sqlite3.Cursor, tuple[Any, ...]], Any]
-) -> Callable[[str, tuple[Any]], Any]:
+) -> Callable[[str, tuple[Any, ...]], Any]:
     @wraps(query_func)
     def wrapper(db_path: str, *args: tuple[Any, ...]) -> Any:
         connection = sqlite3.connect(db_path)
@@ -108,7 +108,9 @@ def create_table_author(cursor: sqlite3.Cursor) -> None:
 # Insertion Functions
 
 @db_connection
-def insert_title(cursor: sqlite3.Cursor, *args):
+def insert_title(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into title table."""
     cursor.execute(
         '''
@@ -118,7 +120,9 @@ def insert_title(cursor: sqlite3.Cursor, *args):
     )
 
 @db_connection
-def insert_genre(cursor: sqlite3.Cursor, *args):
+def insert_genre(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into genre table."""
     cursor.execute(
         '''
@@ -128,7 +132,9 @@ def insert_genre(cursor: sqlite3.Cursor, *args):
     )
 
 @db_connection
-def insert_format(cursor: sqlite3.Cursor, *args):
+def insert_format(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into format table."""
     cursor.execute(
         '''
@@ -138,7 +144,9 @@ def insert_format(cursor: sqlite3.Cursor, *args):
     )
 
 @db_connection
-def insert_publisher(cursor: sqlite3.Cursor, *args):
+def insert_publisher(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into format table."""
     cursor.execute(
         '''
@@ -148,7 +156,9 @@ def insert_publisher(cursor: sqlite3.Cursor, *args):
     )
 
 @db_connection
-def insert_condition(cursor: sqlite3.Cursor, *args):
+def insert_condition(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into condition table."""
     cursor.execute(
         '''
@@ -158,7 +168,9 @@ def insert_condition(cursor: sqlite3.Cursor, *args):
     )
 
 @db_connection
-def insert_author(cursor: sqlite3.Cursor, *args):
+def insert_author(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
     """Insert record into author table."""
     cursor.execute(
         '''
