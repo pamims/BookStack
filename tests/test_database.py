@@ -242,7 +242,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertUniqueTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]]]
+            params_tuple: tuple[tuple[Optional[str]]], num_items: int = 1
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         assert len(params_tuple) == 2, (
@@ -265,10 +265,11 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         for a, b in zip(a_params, b_params):
             if a == b:
                 matched_items.append((a, b))
-        assert len(matched_items) == 1, (
+        assert len(matched_items) == num_items, (
             f"To check UNIQUE constraints properly, the parameter lists must "
-            f"contain exactly one item in common. The particular value being "
-            f"tested should be the common item. Pairs found: {matched_items}"
+            f"contain exactly {num_items} item(s) in common. The particular "
+            f"value being tested should be the common item. Matching items: "
+            f"{matched_items}"
         )
         matched_item = matched_items[0][0]
         column_index = a_params.index(matched_item) + 1
@@ -303,7 +304,7 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         'Title'     : database.insert_title,
         'Author'    : database.insert_author,
         'Genre'     : database.insert_genre,
-        'TitleAuthor' : None,
+        'TitleAuthor' : database.insert_titleauthor,
         'Work'      : None,
 
         'Format'    : database.insert_format,
@@ -318,7 +319,7 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         'Title'     : database.create_table_title,
         'Author'    : database.create_table_author,
         'Genre'     : database.create_table_genre,
-        'TitleAuthor' : None,
+        'TitleAuthor' : database.create_table_titleauthor,
         'Work'      : None,
 
         'Format'    : database.create_table_format,
@@ -588,27 +589,32 @@ class BaseDependentTableTestCase(BaseTableTestCase):
     referenced_table_names: tuple[str] = ()
 
     def __init__(self, methodName: str = "runTest"):
+        """
+        Gets the necessary create_table_* and insert_* functions to set up the
+        test environment.
+        """
         super().__init__(methodName)
-        self.create_table_funcs = (
-            self.getTableFunctionFromDictionary(
-                name, self.db_create_table_functions
-            )
-            for name in self.referenced_table_names
-        )
-        self.insert_funcs = (
+        self.insert_funcs = tuple(
             self.getTableFunctionFromDictionary(
                 name, self.db_insert_functions
-            )
-            for name in self.referenced_table_names
+            ) for name in self.referenced_table_names
+        )
+        self.create_table_funcs = tuple(
+            self.getTableFunctionFromDictionary(
+                name, self.db_create_table_functions
+            ) for name in self.referenced_table_names
         )
 
+
     def setUp(self):
+        """Creates and populates the necessary tables."""
         # Create the test table.
         super().setUp()
         # Turn foreign keys on.
         self.cursor.execute("PRAGMA foreign_keys = ON")
         # Make all the tables -- establish test environment.
         for create_table_func in self.create_table_funcs:
+            print("\n" + str(create_table_func) + ": " + self.db_path + "\n")
             create_table_func(self.db_path)
         # Make 5 insertions in each table.
         for i in range(1, 6):
@@ -619,7 +625,7 @@ class BaseDependentTableTestCase(BaseTableTestCase):
                 column_names = self.getTableColumnNames(table_name)
                 params = (
                     i if 'ID' in column_name else column_name + str(i)
-                    for column_name in column_names[1:] # don't want ID cplumn
+                    for column_name in column_names[1:] # don't want ID column
                 )
                 try:
                     insert_func(self.db_path, *params)
@@ -631,16 +637,47 @@ class BaseDependentTableTestCase(BaseTableTestCase):
                             "the referenced_table_names tuple. Referenced "
                             "tables must be listed before dependent tables."
                         )
+                    else:
+                        self.fail(str(e))
+                except Exception as e:
+                    self.fail(str(e))
 
 
-class TestTestTest(BaseDependentTableTestCase):
-        table_name = 'AuthorTitle'
-        referenced_table_names = (
-            'Title', 'Publisher', 'Genre', 'Format', 'Author', 'Condition'
+class AuthorTitleTableTestCase(BaseDependentTableTestCase):
+    """
+    Tests for validating TitleAuthor table function. TitleAuthors must be
+    inserted correctly with auto-incrementing ID's. Each (TitleID, AuthorID)
+    combination must be unique, and they must have FOREIGN KEY constraints.
+    """
+    table_name = 'TitleAuthor'
+    referenced_table_names = ('Title', 'Author')
+
+    def setUp(self) -> None:
+        super().setUp()
+
+
+    def test_author_title_insert_record_creation(self) -> None:
+        """Verifies insert_titleauthor() creates a valid record"""
+        title_ids = self.getValidRecordIDs('Title')
+        author_ids = self.getValidRecordIDs('Author')
+        author_ids = author_ids[-1:] + author_ids[:-1]
+        params_list = tuple(zip(title_ids, author_ids))
+        print(params_list)
+        self.assertCorrectRecordInsertion(
+            self.table_name, self.insert_function, params_list
         )
 
-        def test_does_this_work(self) -> None:
-            pass
+    def test_author_title_authorid_unique_constraint(self) -> None:
+        """Verifies the unique constraint of TitleID, AuthorID pairs"""
+        title_ids = self.getValidRecordIDs('Title')[:1] * 2
+        author_ids = self.getValidRecordIDs('Author')[:1] * 2
+        params_list = tuple(zip(title_ids, author_ids))
+        print(params_list[:2])
+        self.assertUniqueTableConstraint(
+            self.table_name, self.insert_function, params_list, 2
+        )
+
+
 
 
     #def setUp(self):

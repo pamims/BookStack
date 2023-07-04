@@ -25,7 +25,9 @@ def db_connection(
         return result
     return wrapper
 
+
 # Table Creation Functions
+
 
 @db_connection
 def create_table_title(cursor: sqlite3.Cursor) -> None:
@@ -39,6 +41,7 @@ def create_table_title(cursor: sqlite3.Cursor) -> None:
         '''
     )
 
+
 @db_connection
 def create_table_genre(cursor: sqlite3.Cursor) -> None:
     """Create genre table query."""
@@ -50,6 +53,7 @@ def create_table_genre(cursor: sqlite3.Cursor) -> None:
         )
         '''
     )
+
 
 @db_connection
 def create_table_format(cursor: sqlite3.Cursor) -> None:
@@ -63,6 +67,7 @@ def create_table_format(cursor: sqlite3.Cursor) -> None:
         '''
     )
 
+
 @db_connection
 def create_table_publisher(cursor: sqlite3.Cursor) -> None:
     """Create publisher table query."""
@@ -74,6 +79,7 @@ def create_table_publisher(cursor: sqlite3.Cursor) -> None:
         )
         '''
     )
+
 
 @db_connection
 def create_table_condition(cursor: sqlite3.Cursor) -> None:
@@ -87,6 +93,7 @@ def create_table_condition(cursor: sqlite3.Cursor) -> None:
         )
         '''
     )
+
 
 @db_connection
 def create_table_author(cursor: sqlite3.Cursor) -> None:
@@ -105,7 +112,25 @@ def create_table_author(cursor: sqlite3.Cursor) -> None:
     )
 
 
+@db_connection
+def create_table_titleauthor(cursor: sqlite3.Cursor) -> None:
+    """Create author table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE TitleAuthor (
+            ID INTEGER PRIMARY KEY,
+            TitleID INTEGER,
+            AuthorID INTEGER,
+            UNIQUE (TitleID, AuthorID),
+            FOREIGN KEY (TitleID) REFERENCES Title(ID),
+            FOREIGN KEY (AuthorID) REFERENCES Author(ID)
+        )
+        '''
+    )
+
+
 # Insertion Functions
+
 
 @db_connection
 def insert_title(
@@ -119,6 +144,7 @@ def insert_title(
         ''', args
     )
 
+
 @db_connection
 def insert_genre(
     cursor: sqlite3.Cursor, *args: Union[str, int, float]
@@ -130,6 +156,7 @@ def insert_genre(
         VALUES (?)
         ''', args
     )
+
 
 @db_connection
 def insert_format(
@@ -143,6 +170,7 @@ def insert_format(
         ''', args
     )
 
+
 @db_connection
 def insert_publisher(
     cursor: sqlite3.Cursor, *args: Union[str, int, float]
@@ -154,6 +182,7 @@ def insert_publisher(
         VALUES (?)
         ''', args
     )
+
 
 @db_connection
 def insert_condition(
@@ -167,6 +196,7 @@ def insert_condition(
         ''', args
     )
 
+
 @db_connection
 def insert_author(
     cursor: sqlite3.Cursor, *args: Union[str, int, float]
@@ -176,6 +206,19 @@ def insert_author(
         '''
         INSERT INTO Author (Prefix, First, Middle, Last, Suffix)
         VALUES (?, ?, ?, ?, ?)
+        ''', args
+    )
+
+
+@db_connection
+def insert_titleauthor(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
+    """Insert record into author table."""
+    cursor.execute(
+        '''
+        INSERT INTO TitleAuthor (TitleID, AuthorID)
+        VALUES (?, ?)
         ''', args
     )
 
