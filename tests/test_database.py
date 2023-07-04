@@ -385,29 +385,25 @@ class TitleTableTestCase(BaseTableTestCase):
     """
     table_name = 'Title'
 
-    def setUp(self):
-        """Create title table for testing."""
-        database.create_table_title(self.db_path)
-
-    def test_title_insert_record_creation(self):
+    def test_title_insert_record_creation(self) -> None:
         """Verifies insert_publisher() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-    def test_title_name_not_unique_constraint(self):
+    def test_title_name_not_unique_constraint(self) -> None:
         """Verifies no unique constraint on title Name field."""
-        params_tuple = ((f'Name', ) for i in range(1, 10))
+        params_tuple = ((f'Name', ) for _ in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_title, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-    def test_title_name_not_null_constraint(self):
+    def test_title_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on title Name field."""
         params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_title, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
 class GenreTableTestCase(BaseDatabaseModuleTestCase):
