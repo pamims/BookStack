@@ -101,8 +101,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             '''
         )
         result = cls.cursor.fetchall()
-        table_names = [row[0] for row in result]
-        return table_names
+        if result is not None:
+            result = [row[0] for row in result]
+        return result
 
     @classmethod
     def getTableColumnNames(cls, table_name: str) -> Optional[list[str]]:
