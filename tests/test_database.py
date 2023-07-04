@@ -976,6 +976,42 @@ class AuthorTableTestCase(BaseDatabaseModuleTestCase):
 #             "\n\nFAILURE: Database schema is incorrect!"
 #         )
 
+def __disjoint_union(*iterables: Iterable) -> set[str]:
+    """
+    Takes an arbitrary number of iterables and subtracts their intersection
+    from their union. This is specifically used to assert that all of the
+    dictionary keys match and provide a warning if something is wrong with one
+    of the dictionary definitions.
+    """
+    union = set().union(*iterables)
+    intersection = set(iterables[0]).intersection(*iterables[1:])
+    disjoint_union = union.symmetric_difference(intersection)
+    return disjoint_union
+
+import inspect, sys
+
+
+__classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+__db_dictionaries = [
+    m
+    for (_, class_obj) in __classes
+    for m in inspect.getmembers(class_obj)
+    if m[0].startswith('db_') and type(m[1]) == dict
+]
+__dict_names = set([d[0] for d in __db_dictionaries])
+__db_dictionaries = [d[1] for d in __db_dictionaries]
+
+__mismatched_dictionary_items = __disjoint_union(*__db_dictionaries)
+
+assert len(__mismatched_dictionary_items) == 0, (
+    f"""
+    Keys representing database tables are mismatched across locations.
+    Verify keys are correct.\nMismatched keys: {__mismatched_dictionary_items}
+    \nDictionary names: {__dict_names}
+    """
+)
+
 ### ENTRY POINT ###
+
 if __name__ == '__main__':
     unittest.main()
