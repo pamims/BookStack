@@ -248,7 +248,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         """Asserts NOT NULL constraint detected when adding record."""
         assert len(params_tuple) == 2, (
             "Wrong number of parameter sets. To assert unique table "
-            "constraints, exactly two parameter sets must be given."
+            "constraints, exactly two parameter sets must be given.\nSets "
+            "Given:\n"
+            f"{'; '.join(map(str, params_tuple)) if params_tuple else 'None'}"
         )
         for params in params_tuple:
             assert len(params) == len(set(params)), (
@@ -279,7 +281,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             f"value being tested should be the common item.\nMatching items: "
             f"{'None' if len(matched_items) == 0 else matched_items}, \n"
             f"First set: {a_params}\nSecond set: {b_params}\n"
-            f"{', '.join([str(a) + ' != ' + str(b) for a, b in param_pairs])}"
+            f"{'; '.join(f'{a} != {b}' for a, b in param_pairs)}"
         )
         # get the indices of each match
         column_indices = [
