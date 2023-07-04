@@ -406,7 +406,7 @@ class TitleTableTestCase(BaseTableTestCase):
             self.table_name, self.insert_function, params_tuple
         )
 
-class GenreTableTestCase(BaseDatabaseModuleTestCase):
+class GenreTableTestCase(BaseTableTestCase):
     """
     Tests for validating Genre table function. Genres must be inserted
     correctly with correct auto-incrementing ID's. Title name should
@@ -414,32 +414,28 @@ class GenreTableTestCase(BaseDatabaseModuleTestCase):
     """
     table_name = 'Genre'
 
-    def setUp(self) -> None:
-        """Create genre table for testing."""
-        database.create_table_genre(self.db_path)
-
     def test_genre_insert_record_creation(self) -> None:
         """Verifies insert_genre() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_genre, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_genre_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the genre name field."""
         params_tuple = (('Name', ), ('Name', ))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_genre, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_genre_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on genre name field."""
         params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_genre, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-class FormatTableTestCase(BaseDatabaseModuleTestCase):
+class FormatTableTestCase(BaseTableTestCase):
     """
     Tests for validating Format table function. Formats must be inserted
     correctly with correct auto-incrementing ID's. Format name should
@@ -447,32 +443,28 @@ class FormatTableTestCase(BaseDatabaseModuleTestCase):
     """
     table_name = 'Format'
 
-    def setUp(self) -> None:
-        """Create format table for testing."""
-        database.create_table_format(self.db_path)
-
     def test_format_insert_record_creation(self) -> None:
         """Verifies insert_format() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_format, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_format_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the format name field."""
         params_tuple = (('Name', ), ('Name', ))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_format, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_format_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on format name field."""
         params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_format, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-class PublisherTableTestCase(BaseDatabaseModuleTestCase):
+class PublisherTableTestCase(BaseTableTestCase):
     """
     Tests for validating Publisher table function. Publishers must be inserted
     correctly with correct auto-incrementing ID's. Publisher name should
@@ -480,32 +472,28 @@ class PublisherTableTestCase(BaseDatabaseModuleTestCase):
     """
     table_name = 'Publisher'
 
-    def setUp(self) -> None:
-        """Create publisher table for testing."""
-        database.create_table_publisher(self.db_path)
-
     def test_publisher_insert_record_creation(self) -> None:
         """Verifies insert_publisher() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_publisher, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_publisher_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the publisher name field."""
         params_tuple = (('Name', ), ('Name', ))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_publisher, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_publisher_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on publisher name field."""
         params_tuple = ((None, ), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_publisher, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-class ConditionTableTestCase(BaseDatabaseModuleTestCase):
+class ConditionTableTestCase(BaseTableTestCase):
     """
     Tests for validating Condition table function. Conditions must be inserted
     correctly with auto-incrementing ID's. Condition names and descriptions
@@ -513,29 +501,25 @@ class ConditionTableTestCase(BaseDatabaseModuleTestCase):
     """
     table_name = 'Condition'
 
-    def setUp(self) -> None:
-        """Create condition table for testing."""
-        database.create_table_condition(self.db_path)
-
     def test_condition_insert_record_function(self) -> None:
         """Verifies insert_condition() creates a valid record."""
         params_tuple = ((f'Name{i}', f'Description{i}') for i in range(1, 10))
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_condition, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_condition_name_unique_constraint(self) -> None:
         """Verifies unique constraint on condition name field."""
         params_tuple = (('Name', 'Description1'), ('Name', 'Description2'))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_condition, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_condition_description_unique_constraint(self) -> None:
         """Verifies unique constraint on condition description field."""
         params_tuple = (('Name1', 'Description'), ('Name2', 'Description'))
         self.assertUniqueTableConstraint(
-            self.table_name, database.insert_condition, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_condition_name_and_description_not_null_constraints(self) -> None:
@@ -544,20 +528,16 @@ class ConditionTableTestCase(BaseDatabaseModuleTestCase):
         """
         params_tuple = ((None, 'Description'), ('Name', None))
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_condition, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
-class AuthorTableTestCase(BaseDatabaseModuleTestCase):
+class AuthorTableTestCase(BaseTableTestCase):
     """
     Tests for validating Author table function. Authors must be inserted
     correctly with auto-incrementing ID's. Author First[Name] must be NOT NULL.
     Author Prefix, Middle, Last, and Suffix must be NULLABLE.
     """
     table_name = 'Author'
-
-    def setUp(self) -> None:
-        """Create author table for testing."""
-        database.create_table_author(self.db_path)
 
     def test_author_insert_record_creation(self) -> None:
         """Verifies insert_author() creates a valid record."""
@@ -566,44 +546,43 @@ class AuthorTableTestCase(BaseDatabaseModuleTestCase):
             for i in range(1, 10)
         )
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_first_not_null_constraint(self) -> None:
         """Verifies not null constraint on author first field."""
         params_tuple = (('Prefix', None, 'Middle', 'Last', 'Suffix'), )
         self.assertNotNullTableConstraints(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_prefix_nullable_constraint(self) -> None:
         """Verifies author prefix field nullable."""
         params_tuple = ((None, 'First', 'Middle', 'Last', 'Suffix'), )
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_middle_nullable_constraint(self) -> None:
         """Verifies author middle field nullable."""
         params_tuple = (('Prefix', 'First', None, 'Last', 'Suffix'), )
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_last_nullable_constraint(self) -> None:
         """Verifies author last field nullable."""
         params_tuple = (('Prefix', 'First', 'Middle', None, 'Suffix'), )
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_suffix_nullable_constraint(self) -> None:
         """Verifies author suffix field nullable."""
         params_tuple = (('Prefix', 'First', 'Middle', 'Last', None), )
         self.assertCorrectRecordInsertion(
-            self.table_name, database.insert_author, params_tuple
+            self.table_name, self.insert_function, params_tuple
         )
-
 
 
 
