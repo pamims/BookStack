@@ -4,7 +4,7 @@ import inspect
 from typing import Any, Callable
 
 from tests import db_test_config
-from tests.test_database import BaseDatabaseModuleTestCase
+from tests.base_db_testcase import BaseDatabaseModuleTestCase
 
 
 class BaseTableTestCase(BaseDatabaseModuleTestCase):
