@@ -240,6 +240,31 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             error_msg = str(ctx.exception)
             self.assertIn("NOT NULL constraint failed", error_msg, msg)
 
+    def assertForeignKeyTableConstraint(
+            self, table_name: str, insert_row_func: Callable[..., None],
+            params_tuple: tuple[tuple[Optional[str]]]
+    ) -> None:
+        """Asserts FOREIGN KEY constraint detected when adding record."""
+        assert len(params_tuple) == 1, (
+            f"Only send one set of parameters at a time to check FOREIGN KEY "
+            f"constraint. FK tests must be performed individually.\nTable: "
+            f"{table_name}\nParemeter sets:\n"
+            f"{'; '.join(map(str, params) for params in params_tuple)}"
+        )
+        params = params_tuple[0]
+        with self.assertRaises(
+            sqlite3.IntegrityError,
+            msg = f"No Foreign Key violation error in table {table_name}."
+        ) as ctx:
+            insert_row_func(self.db_path, *params)
+        error_msg = str(ctx.exception)
+        self.assertIn(
+            "FOREIGN KEY constraint failed", error_msg,
+            f"Could not verify Foreign Key constraint for table {table_name} "
+            f"due to some other error:\n{error_msg}"
+        )
+
+
     def assertUniqueTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
             params_tuple: tuple[tuple[Optional[str]], tuple[Optional[str]]],
@@ -656,7 +681,7 @@ class BaseDependentTableTestCase(BaseTableTestCase):
                     self.fail(str(e))
 
 
-class AuthorTitleTableTestCase(BaseDependentTableTestCase):
+class TitleAuthorTableTestCase(BaseDependentTableTestCase):
     """
     Tests for validating TitleAuthor table function. TitleAuthors must be
     inserted correctly with auto-incrementing ID's. Each (TitleID, AuthorID)
@@ -665,11 +690,7 @@ class AuthorTitleTableTestCase(BaseDependentTableTestCase):
     table_name = 'TitleAuthor'
     referenced_table_names = ('Title', 'Author')
 
-    def setUp(self) -> None:
-        super().setUp()
-
-
-    def test_author_title_insert_record_creation(self) -> None:
+    def test_titleauthor_insert_record_creation(self) -> None:
         """Verifies insert_titleauthor() creates a valid record"""
         title_ids = self.getValidRecordIDs('Title')
         author_ids = self.getValidRecordIDs('Author')
@@ -679,14 +700,42 @@ class AuthorTitleTableTestCase(BaseDependentTableTestCase):
             self.table_name, self.insert_function, params_list
         )
 
-    def test_author_title_authorid_unique_constraint(self) -> None:
+    def test_titleauthor_authorid_titleid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleID, AuthorID pairs"""
-        title_ids = self.getValidRecordIDs('Title')[:2] * 2
-        author_ids = self.getValidRecordIDs('Author')[3:5] * 2
-        params_list = tuple(zip(title_ids, author_ids))[:2]
+        title_ids = self.getValidRecordIDs('Title')
+        author_ids = self.getValidRecordIDs('Author')
+        params_list = next(
+            ((t, a), ) * 2 for t in title_ids for a in author_ids if t != a
+        )
+        #params_list = (param, param)
         self.assertUniqueTableConstraint(
             self.table_name, self.insert_function, params_list, 2
         )
+
+    def test_titleauthor_authorid_foreign_key_constraint(self) -> None:
+        title_ids = self.getValidRecordIDs('Title')
+        author_ids = self.getValidRecordIDs('Author')
+        ids = set(title_ids).union(author_ids)
+        invalid_id = next(
+            i for i in range(1, len(ids) + 2) if i not in ids
+        )
+        params_list = ((title_ids[0], invalid_id), )
+        self.assertForeignKeyTableConstraint(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_titleauthor_titleid_foreign_key_constraint(self) -> None:
+        title_ids = self.getValidRecordIDs('Title')
+        author_ids = self.getValidRecordIDs('Author')
+        ids = set(title_ids).union(author_ids)
+        invalid_id = next(
+            i for i in range(1, len(ids) + 2) if i not in ids
+        )
+        params_list = ((invalid_id, author_ids[0]), )
+        self.assertForeignKeyTableConstraint(
+            self.table_name, self.insert_function, params_list
+        )
+
 
 
 class WorkTableTestCase(BaseDependentTableTestCase):
