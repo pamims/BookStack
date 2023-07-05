@@ -175,3 +175,15 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
+
+
+class PublicationTableTestCase(BaseDependentTableTestCase):
+    """
+    Tests for validating Publication table function. Publication must be
+    inserted correctly with auto-incrementing ID's.
+    (WorkID, FormatID, PublisherID) must be UNIQUE
+    ISBN must be UNIQUE
+    WorkID, FormatID, PublisherID must be FOREIGN KEYs
+    WorkID, FormatID must be NOT NULL
+    PulbisherID, ISBN must be NULLABLE
+    """
