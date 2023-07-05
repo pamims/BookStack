@@ -3,7 +3,7 @@
 import inspect
 from typing import Any, Callable
 
-from source import database
+from tests import db_test_config
 from tests.test_database import BaseDatabaseModuleTestCase
 
 
@@ -24,36 +24,8 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
     The setUp function similarly decides which create_table_* function to call
     at the beginning of each test.
     """
-    db_insert_functions = {
-        'Title': database.insert_title,
-        'Author': database.insert_author,
-        'Genre': database.insert_genre,
-        'TitleAuthor': database.insert_titleauthor,
-        'Work': database.insert_work,
-
-        'Format': database.insert_format,
-        'Publisher': database.insert_publisher,
-        'Publication': None,
-
-        'Condition': database.insert_condition,
-        'Location': None,
-        'Book': None
-    }
-    db_create_table_functions = {
-        'Title': database.create_table_title,
-        'Author': database.create_table_author,
-        'Genre': database.create_table_genre,
-        'TitleAuthor': database.create_table_titleauthor,
-        'Work': database.create_table_work,
-
-        'Format': database.create_table_format,
-        'Publisher': database.create_table_publisher,
-        'Publication': None,
-
-        'Condition': database.create_table_condition,
-        'Location': None,
-        'Book': None
-    }
+    db_insert_functions = db_test_config.DB_DICT_INSERT_FUNCS
+    db_create_table_functions = db_test_config.DB_DICT_CREATE_TABLE_FUNCS
     table_name = None
 
     def __init__(self, methodName: str = "runTest"):

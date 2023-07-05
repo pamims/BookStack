@@ -1,31 +1,17 @@
 """Test cases for database.py"""
 
-import inspect
 import os
 import sqlite3
-import sys
 from typing import Callable, Iterable, Optional, Tuple
 import unittest
+
+from tests import db_test_config
 
 
 class BaseDatabaseModuleTestCase(unittest.TestCase):
     """Base test case for all database tests."""
     db_path = 'test_book_stack_database.db'
-    db_required_tables = {
-        'Title': ['ID', 'Name'],
-        'Author': ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
-        'Genre': ['ID', 'Name'],
-        'TitleAuthor': ['ID', 'TitleID', 'AuthorID'],
-        'Work': ['ID', 'TitleAuthorID', 'GenreID'],
-
-        'Format': ['ID', 'Name'],
-        'Publisher': ['ID', 'Name'],
-        'Publication': ['ID', 'WorkID', 'FormatID', 'PublisherID', 'ISBN'],
-
-        'Condition': ['ID', 'Name', 'Description'],
-        'Location': ['ID', 'LocationID', 'Name', 'Description'],
-        'Book': ['ID', 'PublicationID', 'ConditionID', 'LocationID']
-    }
+    db_required_tables = db_test_config.DB_DICT_SCHEMA
 
     # These are [class members] because I want to use them in setUpClass and
     # tearDownClass -- the connection only needs established once per TestCase
@@ -327,44 +313,3 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             insert_row_func(self.db_path, *params_tuple[1])
         error_msg = str(ctx.exception)
         self.assertIn("UNIQUE constraint failed", error_msg, msg)
-
-# ## TEST CASES ## #
-
-
-def __disjoint_union(*iterables: Iterable) -> set[str]:
-    """
-    Takes an arbitrary number of iterables and subtracts their intersection
-    from their union. This is specifically used to assert that all of the
-    dictionary keys match and provide a warning if something is wrong with one
-    of the dictionary definitions -- if disjoint union is 0, assertion passes.
-    """
-    union = set().union(*iterables)
-    intersection = set(iterables[0]).intersection(*iterables[1:])
-    disjoint_union = union.symmetric_difference(intersection)
-    return disjoint_union
-
-
-__classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
-__db_dictionaries = [
-    m
-    for (_, class_obj) in __classes
-    for m in inspect.getmembers(class_obj)
-    if m[0].startswith('db_') and isinstance(m[1], dict)
-]
-__dict_names = {d[0] for d in __db_dictionaries}
-__db_dictionaries = [d[1] for d in __db_dictionaries]
-
-__mismatched_dictionary_items = __disjoint_union(*__db_dictionaries)
-
-assert len(__mismatched_dictionary_items) == 0, (
-    f"""
-    Keys representing database tables are mismatched across locations.
-    Verify keys are correct.\nMismatched keys: {__mismatched_dictionary_items}
-    \nDictionary names: {__dict_names}
-    """
-)
-
-# ## ENTRY POINT ## #
-
-if __name__ == '__main__':
-    unittest.main()
