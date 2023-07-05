@@ -130,6 +130,23 @@ def create_table_titleauthor(cursor: sqlite3.Cursor) -> None:
     )
 
 
+@db_connection
+def create_table_work(cursor: sqlite3.Cursor) -> None:
+    """Create work table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Work (
+            ID INTEGER PRIMARY KEY,
+            TitleAuthorID INTEGER,
+            GenreID INTEGER,
+            UNIQUE (TitleAuthorID, GenreID),
+            FOREIGN KEY (TitleAuthorID) REFERENCES TitleAuthor(ID),
+            FOREIGN KEY (GenreID) REFERENCES Genre(ID)
+        )
+        '''
+    )
+
+
 # Insertion Functions
 
 
@@ -219,6 +236,19 @@ def insert_titleauthor(
     cursor.execute(
         '''
         INSERT INTO TitleAuthor (TitleID, AuthorID)
+        VALUES (?, ?)
+        ''', args
+    )
+
+
+@db_connection
+def insert_work(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
+    """Insert record into work table."""
+    cursor.execute(
+        '''
+        INSERT INTO Work (TitleAuthorID, GenreID)
         VALUES (?, ?)
         ''', args
     )

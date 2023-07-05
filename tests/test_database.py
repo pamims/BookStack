@@ -344,7 +344,7 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         'Author'    : database.insert_author,
         'Genre'     : database.insert_genre,
         'TitleAuthor' : database.insert_titleauthor,
-        'Work'      : None,
+        'Work'      : database.insert_work,
 
         'Format'    : database.insert_format,
         'Publisher' : database.insert_publisher,
@@ -359,7 +359,7 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         'Author'    : database.create_table_author,
         'Genre'     : database.create_table_genre,
         'TitleAuthor' : database.create_table_titleauthor,
-        'Work'      : None,
+        'Work'      : database.create_table_work,
 
         'Format'    : database.create_table_format,
         'Publisher' : database.create_table_publisher,
@@ -396,8 +396,8 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
     ) -> Callable[[str, tuple[Any, ...]], Any]:
         if table_name not in dictionary:
             self.fail(
-                f"Cannot locate function. '{table_name}' is not defined in "
-                f"the provided dictionary. Available keys are: "
+                f"Cannot locate function. Table '{table_name}' is not defined "
+                f"in the provided dictionary. Available keys are: "
                 f"{', '.join(dictionary)}"
             )
         func: Callable[[str, tuple[Any, ...]], Any] = (
@@ -745,10 +745,54 @@ class WorkTableTestCase(BaseDependentTableTestCase):
     be unique, and they must have FOREIGN KEY constraints.
     """
 
+    table_name = 'Work'
+    referenced_table_names = ('Title', 'Author', 'TitleAuthor', 'Genre')
 
+    def test_work_insert_record_createion(self) -> None:
+        ta_ids = self.getValidRecordIDs('TitleAuthor')
+        genre_ids = self.getValidRecordIDs('Genre')
+        genre_ids = genre_ids[-1:] + genre_ids[:-1]
+        params_list = tuple(zip(ta_ids, genre_ids))
+        self.assertCorrectRecordInsertion(
+            self.table_name, self.insert_function, params_list
+        )
 
+    def test_work_titleauthorid_genreid_unique_constraint(self) -> None:
+        """Verifies the unique constraint of TitleAuthorID, GenreID pairs"""
+        ta_ids = self.getValidRecordIDs('TitleAuthor')
+        genre_ids = self.getValidRecordIDs('Genre')
+        params_list = next(
+            ((ta, g), ) * 2 for ta in ta_ids for g in genre_ids if ta != g
+        )
+        #params_list = (param, param)
+        self.assertUniqueTableConstraint(
+            self.table_name, self.insert_function, params_list, 2
+        )
 
-    #def setUp(self):
+    def test_work_genreid_foreign_key_constraint(self) -> None:
+        ta_ids = self.getValidRecordIDs('TitleAuthor')
+        genre_ids = self.getValidRecordIDs('Genre')
+        ids = set(ta_ids).union(genre_ids)
+        invalid_id = next(
+            i for i in range(1, len(ids) + 2) if i not in ids
+        )
+        params_list = ((ta_ids[0], invalid_id), )
+        self.assertForeignKeyTableConstraint(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_work_titleauthorid_foreign_key_constraint(self) -> None:
+        ta_ids = self.getValidRecordIDs('TitleAuthor')
+        genre_ids = self.getValidRecordIDs('Genre')
+        ids = set(ta_ids).union(genre_ids)
+        invalid_id = next(
+            i for i in range(1, len(ids) + 2) if i not in ids
+        )
+        params_list = ((invalid_id, genre_ids[0]), )
+        self.assertForeignKeyTableConstraint(
+            self.table_name, self.insert_function, params_list
+        )
+
 
 
 
