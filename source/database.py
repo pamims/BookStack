@@ -11,6 +11,7 @@ def db_connection(
     def wrapper(db_path: str, *args: tuple[Any, ...]) -> Any:
         connection = sqlite3.connect(db_path)
         cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON")
 
         try:
             result = query_func(cursor, *args)
@@ -121,13 +122,13 @@ def create_table_titleauthor(cursor: sqlite3.Cursor) -> None:
             ID INTEGER PRIMARY KEY,
             TitleID INTEGER,
             AuthorID INTEGER,
+            UNIQUE (TitleID, AuthorID),
             FOREIGN KEY (TitleID) REFERENCES Title(ID),
             FOREIGN KEY (AuthorID) REFERENCES Author(ID)
         )
         '''
     )
 
-#            UNIQUE (TitleID, AuthorID),
 
 # Insertion Functions
 

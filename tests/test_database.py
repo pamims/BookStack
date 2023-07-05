@@ -650,7 +650,7 @@ class BaseDependentTableTestCase(BaseTableTestCase):
         # Create the test table.
         super().setUp()
         # Turn foreign keys on.
-        self.cursor.execute("PRAGMA foreign_keys = ON")
+        # self.cursor.execute("PRAGMA foreign_keys = ON")
         # Make all the tables -- establish test environment.
         for create_table_func in self.create_table_funcs:
             create_table_func(self.db_path)
