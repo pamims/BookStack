@@ -1,27 +1,31 @@
-import unittest
+"""Test cases for database.py"""
+
+import inspect
 import os
 import sqlite3
-from source import database
+import sys
 from typing import Any, Callable, Iterable, Optional, Tuple
+import unittest
+from source import database
 
-### BASE CLASSES ###
+
 class BaseDatabaseModuleTestCase(unittest.TestCase):
     """Base test case for all database tests."""
     db_path = 'test_book_stack_database.db'
     db_required_tables = {
-        'Title'     : ['ID', 'Name'],
-        'Author'    : ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
-        'Genre'     : ['ID', 'Name'],
-        'TitleAuthor' : ['ID', 'TitleID', 'AuthorID'],
-        'Work'      : ['ID', 'TitleAuthorID', 'GenreID'],
+        'Title': ['ID', 'Name'],
+        'Author': ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
+        'Genre': ['ID', 'Name'],
+        'TitleAuthor': ['ID', 'TitleID', 'AuthorID'],
+        'Work': ['ID', 'TitleAuthorID', 'GenreID'],
 
-        'Format'    : ['ID', 'Name'],
-        'Publisher' : ['ID', 'Name'],
-        'Publication' : ['ID', 'WorkID', 'FormatID', 'PublisherID', 'ISBN'],
+        'Format': ['ID', 'Name'],
+        'Publisher': ['ID', 'Name'],
+        'Publication': ['ID', 'WorkID', 'FormatID', 'PublisherID', 'ISBN'],
 
-        'Condition' : ['ID', 'Name', 'Description'],
-        'Location'  : ['ID', 'LocationID', 'Name', 'Description'],
-        'Book'      : ['ID', 'PublicationID', 'ConditionID', 'LocationID']
+        'Condition': ['ID', 'Name', 'Description'],
+        'Location': ['ID', 'LocationID', 'Name', 'Description'],
+        'Book': ['ID', 'PublicationID', 'ConditionID', 'LocationID']
     }
 
     # These are [class members] because I want to use them in setUpClass and
@@ -31,7 +35,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def tearDown(self) -> None:
         """Clean the database after each test"""
-        self.removeAllDatabaseTables()
+        self.remove_all_database_tables()
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -42,7 +46,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     def tearDownClass(cls) -> None:
         """Closes database connection and removes test database file."""
         cls.closeDatabaseConnection()
-        cls.removeDatabaseFile()
+        cls.remove_database_file()
 
     @classmethod
     def openDatabaseConnection(cls) -> None:
@@ -60,21 +64,21 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             cls.cursor = None
 
     @classmethod
-    def removeDatabaseFile(cls) -> None:
+    def remove_database_file(cls) -> None:
         """Finds and removes test database file as cleanup."""
         if os.path.exists(cls.db_path):
             os.remove(cls.db_path)
 
     @classmethod
-    def removeAllDatabaseTables(cls) -> None:
+    def remove_all_database_tables(cls) -> None:
         """Drops all tables in the database."""
-        user_defined_tables = cls.getDatabaseTableNames()
+        user_defined_tables = cls.get_database_table_names()
         for table in user_defined_tables:
             cls.cursor.execute(f"DROP TABLE IF EXISTS {table}")
         cls.connection.commit()
 
     @classmethod
-    def validateCursor(cls, msg: str = None) -> None:
+    def validate_cursor(cls, msg: str = None) -> None:
         """Errors when there is no cursor object."""
         if cls.cursor is None:
             if msg is None:
@@ -82,7 +86,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             raise cls.NoDatabaseConnectionError(msg)
 
     @classmethod
-    def validateTableName(
+    def validate_table_name(
         cls, table_name: str, db_schema: Iterable, msg: str = None
     ) -> None:
         """Ensures the table name is in the given iterable."""
@@ -95,9 +99,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             raise cls.DatabaseTableError(msg)
 
     @classmethod
-    def getDatabaseTableNames(cls) -> Optional[list[str]]:
+    def get_database_table_names(cls) -> Optional[list[str]]:
         """Get the table names from the database."""
-        cls.validateCursor("Cannot get table names. No database connection.")
+        cls.validate_cursor("Cannot get table names. No database connection.")
         cls.cursor.execute(
             '''
             SELECT name FROM sqlite_master WHERE type='table'
@@ -108,17 +112,17 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         return result
 
     @classmethod
-    def getTableColumnNames(cls, table_name: str) -> Optional[list[str]]:
+    def get_table_column_names(cls, table_name: str) -> Optional[list[str]]:
         """Get the column names from a specific table in the database."""
-        cls.validateTableName(
+        cls.validate_table_name(
             table_name, cls.db_required_tables,
             f"Cannot retrieve columns for '{table_name}' table.\n"
             f"Valid names include: {', '.join(list(cls.db_required_tables))}\n"
             f"Invalid table name: {table_name}\n"
         )
-        table_names = cls.getDatabaseTableNames()
+        table_names = cls.get_database_table_names()
         if table_name not in table_names:
-            return [] # no columns in table that doesn't exist
+            return []  # no columns in table that doesn't exist
         cls.cursor.execute(f"PRAGMA table_info({table_name})")
         result = cls.cursor.fetchall()
         # if result is not None: just return the empty list
@@ -126,17 +130,19 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         return result
 
     @classmethod
-    def getValidRecordIDs(cls, table_name: str) -> Optional[list[int]]:
+    def get_valid_record_id(cls, table_name: str) -> Optional[list[int]]:
         """Returns all ID (primary key) column values from a table."""
-        cls.validateCursor("Could not get Record IDs. No database connection.")
-        cls.validateTableName(
+        cls.validate_cursor(
+            "Could not get Record IDs. No database connection."
+        )
+        cls.validate_table_name(
             table_name, cls.db_required_tables,
             f"Cannot retrieve columns for '{table_name}' table.\n"
             f"Valid names include: {', '.join(list(cls.db_required_tables))}\n"
             f"Invalid table name: {table_name}\n"
         )
-        table_names = cls.getDatabaseTableNames()
-        cls.validateTableName(
+        table_names = cls.get_database_table_names()
+        cls.validate_table_name(
             table_name, table_names,
             f"Cannot retrieve columns for '{table_name}' table.\n"
             f"Tables in database: {', '.join(list(table_names))}\n"
@@ -149,8 +155,12 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         return result
 
     class DatabaseError(Exception):
+        """
+        Parent class for database-related errors in BaseDatabaseModuleTestCase.
+        """
         def __init__(self, msg: str = None):
             super().__init__(msg)
+
         def __str__(self) -> str:
             msg = super().args[0]
             name = type(self).__name__
@@ -158,11 +168,12 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             return msg
 
     class NoDatabaseConnectionError(DatabaseError):
-        pass
-    class DatabaseTableError(DatabaseError):
-        pass
+        """Exception raised when no database connection is found."""
 
-    def assertCorrectRecordInsertion(
+    class DatabaseTableError(DatabaseError):
+        """Exception raised when there is a problem finding a table."""
+
+    def assert_record_insertion_correct(
             self, table_name: str, insert_row_func: Callable[..., None],
             params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
@@ -170,17 +181,17 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         Asserts correct table insertion. Includes: Record exists,
         ID AUTOINCREMENT, Number of fields, Correct values
         """
-        self.validateTableName(table_name, self.db_required_tables)
-        self.validateCursor()
+        self.validate_table_name(table_name, self.db_required_tables)
+        self.validate_cursor()
 
         for params in params_tuple:
             try:
                 insert_row_func(self.db_path, *params)
-            except Exception as e:
-                self.fail(f"Error during '{table_name}' insertion: {str(e)}")
+            except sqlite3.Error as exc:
+                self.fail(f"Error during '{table_name}' insertion: {str(exc)}")
 
         self.cursor.execute(f"SELECT * FROM {table_name}")
-        id = 0
+        expected_id = 0
         for params in params_tuple:
             assert len(params) == len(set(params)), (
                 "Cannot assert correct record insertion. Cannot verify "
@@ -188,8 +199,8 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                 "the same value. Ensure different values are being passed for "
                 "each parameter."
             )
-            id += 1 # sqlite database autoincrement id's start at 1
-            expected_record = (id, ) + params
+            expected_id += 1  # sqlite database autoincrement id's start at 1
+            expected_record = (expected_id, ) + params
             record = self.cursor.fetchone()
             if record is None:
                 self.fail(f"No record found in the '{table_name}' table.")
@@ -213,9 +224,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         try:
-            column_names = self.getTableColumnNames(table_name)
-        except self.DatabaseError as e: # could raise either one
-            self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
+            column_names = self.get_table_column_names(table_name)
+        except self.DatabaseError as exc:  # could raise either one
+            self.fail(f"Could not assert NOT NULL constraints: {str(exc)}")
 
         for params in params_tuple:
             # make sure only one None is in the parameters
@@ -230,16 +241,16 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                 "the number of columns that are supposed to be in the table."
             )
             # get the name of the column being tested
-            col_index = params.index(None) + 1 # accounts for ID column
+            col_index = params.index(None) + 1  # accounts for ID column
             column_tested = column_names[col_index]
             # generate the failure message
             msg = f"{table_name} [{column_tested}] NOT NULL constraint fails."
-            with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
+            with self.assertRaises(sqlite3.IntegrityError, msg=msg) as ctx:
                 insert_row_func(self.db_path, *params)
             error_msg = str(ctx.exception)
             self.assertIn("NOT NULL constraint failed", error_msg, msg)
 
-    def assertForeignKeyTableConstraint(
+    def assert_foreign_key_constraints(
             self, table_name: str, insert_row_func: Callable[..., None],
             params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
@@ -253,7 +264,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         params = params_tuple[0]
         with self.assertRaises(
             sqlite3.IntegrityError,
-            msg = f"No Foreign Key violation error in table {table_name}."
+            msg=f"No Foreign Key violation error in table {table_name}."
         ) as ctx:
             insert_row_func(self.db_path, *params)
         error_msg = str(ctx.exception)
@@ -283,9 +294,9 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             )
         a_params, b_params = params_tuple
         try:
-            column_names = self.getTableColumnNames(table_name)
-        except self.DatabaseError as e: # could raise either one
-            self.fail(f"Could not assert UNIQUE constraints: {str(e)}")
+            column_names = self.get_table_column_names(table_name)
+        except self.DatabaseError as exc:  # could raise either one
+            self.fail(f"Could not assert UNIQUE constraints: {str(exc)}")
         # make sure the parameters were programmed in correctly
         a_len = len(a_params)
         assert a_len + 1 == len(column_names) and a_len == len(b_params), (
@@ -308,13 +319,14 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         ]
         columns_tested = tuple(column_names[i] for i in column_indices)
         msg = f"{table_name} [{columns_tested}] UNIQUE constraint fails."
-        with self.assertRaises(sqlite3.IntegrityError, msg = msg) as ctx:
+        with self.assertRaises(sqlite3.IntegrityError, msg=msg) as ctx:
             insert_row_func(self.db_path, *a_params)
             insert_row_func(self.db_path, *b_params)
         error_msg = str(ctx.exception)
         self.assertIn("UNIQUE constraint failed", error_msg, msg)
 
-### TEST CASES ###
+# ## TEST CASES ## #
+
 
 class BaseTableTestCase(BaseDatabaseModuleTestCase):
     """
@@ -334,34 +346,34 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
     at the beginning of each test.
     """
     db_insert_functions = {
-        'Title'     : database.insert_title,
-        'Author'    : database.insert_author,
-        'Genre'     : database.insert_genre,
-        'TitleAuthor' : database.insert_titleauthor,
-        'Work'      : database.insert_work,
+        'Title': database.insert_title,
+        'Author': database.insert_author,
+        'Genre': database.insert_genre,
+        'TitleAuthor': database.insert_titleauthor,
+        'Work': database.insert_work,
 
-        'Format'    : database.insert_format,
-        'Publisher' : database.insert_publisher,
-        'Publication' : None,
+        'Format': database.insert_format,
+        'Publisher': database.insert_publisher,
+        'Publication': None,
 
-        'Condition' : database.insert_condition,
-        'Location'  : None,
-        'Book'      : None
+        'Condition': database.insert_condition,
+        'Location': None,
+        'Book': None
     }
     db_create_table_functions = {
-        'Title'     : database.create_table_title,
-        'Author'    : database.create_table_author,
-        'Genre'     : database.create_table_genre,
-        'TitleAuthor' : database.create_table_titleauthor,
-        'Work'      : database.create_table_work,
+        'Title': database.create_table_title,
+        'Author': database.create_table_author,
+        'Genre': database.create_table_genre,
+        'TitleAuthor': database.create_table_titleauthor,
+        'Work': database.create_table_work,
 
-        'Format'    : database.create_table_format,
-        'Publisher' : database.create_table_publisher,
-        'Publication' : None,
+        'Format': database.create_table_format,
+        'Publisher': database.create_table_publisher,
+        'Publication': None,
 
-        'Condition' : database.create_table_condition,
-        'Location'  : None,
-        'Book'      : None
+        'Condition': database.create_table_condition,
+        'Location': None,
+        'Book': None
     }
     table_name = None
 
@@ -388,7 +400,7 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
             self: BaseDatabaseModuleTestCase, table_name: str,
             dictionary: dict[str, Callable[[str, tuple[Any, ...]], Any]]
     ) -> Callable[[str, tuple[Any, ...]], Any]:
-        self.validateTableName(
+        self.validate_table_name(
             table_name, dictionary,
             f"Cannot locate function. Table '{table_name}' is not defined "
             f"in the provided dictionary. Available keys are: "
@@ -424,14 +436,14 @@ class TitleTableTestCase(BaseTableTestCase):
     def test_title_insert_record_creation(self) -> None:
         """Verifies insert_publisher() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_title_name_not_unique_constraint(self) -> None:
         """Verifies no unique constraint on title Name field."""
-        params_tuple = ((f'Name', ) for _ in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        params_tuple = (('Name', ) for _ in range(1, 10))
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -441,6 +453,7 @@ class TitleTableTestCase(BaseTableTestCase):
         self.assertNotNullTableConstraints(
             self.table_name, self.insert_function, params_tuple
         )
+
 
 class GenreTableTestCase(BaseTableTestCase):
     """
@@ -453,7 +466,7 @@ class GenreTableTestCase(BaseTableTestCase):
     def test_genre_insert_record_creation(self) -> None:
         """Verifies insert_genre() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -471,6 +484,7 @@ class GenreTableTestCase(BaseTableTestCase):
             self.table_name, self.insert_function, params_tuple
         )
 
+
 class FormatTableTestCase(BaseTableTestCase):
     """
     Tests for validating Format table function. Formats must be inserted
@@ -482,7 +496,7 @@ class FormatTableTestCase(BaseTableTestCase):
     def test_format_insert_record_creation(self) -> None:
         """Verifies insert_format() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -500,6 +514,7 @@ class FormatTableTestCase(BaseTableTestCase):
             self.table_name, self.insert_function, params_tuple
         )
 
+
 class PublisherTableTestCase(BaseTableTestCase):
     """
     Tests for validating Publisher table function. Publishers must be inserted
@@ -511,7 +526,7 @@ class PublisherTableTestCase(BaseTableTestCase):
     def test_publisher_insert_record_creation(self) -> None:
         """Verifies insert_publisher() creates a valid record."""
         params_tuple = ((f'Name{i}', ) for i in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -529,6 +544,7 @@ class PublisherTableTestCase(BaseTableTestCase):
             self.table_name, self.insert_function, params_tuple
         )
 
+
 class ConditionTableTestCase(BaseTableTestCase):
     """
     Tests for validating Condition table function. Conditions must be inserted
@@ -540,7 +556,7 @@ class ConditionTableTestCase(BaseTableTestCase):
     def test_condition_insert_record_function(self) -> None:
         """Verifies insert_condition() creates a valid record."""
         params_tuple = ((f'Name{i}', f'Description{i}') for i in range(1, 10))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -567,6 +583,7 @@ class ConditionTableTestCase(BaseTableTestCase):
             self.table_name, self.insert_function, params_tuple
         )
 
+
 class AuthorTableTestCase(BaseTableTestCase):
     """
     Tests for validating Author table function. Authors must be inserted
@@ -581,7 +598,7 @@ class AuthorTableTestCase(BaseTableTestCase):
             (f'Prefix{i}', f'First{i}', f'Middle{i}', f'Last{i}', f'Suffix{i}')
             for i in range(1, 10)
         )
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -595,28 +612,28 @@ class AuthorTableTestCase(BaseTableTestCase):
     def test_author_prefix_nullable_constraint(self) -> None:
         """Verifies author prefix field nullable."""
         params_tuple = ((None, 'First', 'Middle', 'Last', 'Suffix'), )
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_middle_nullable_constraint(self) -> None:
         """Verifies author middle field nullable."""
         params_tuple = (('Prefix', 'First', None, 'Last', 'Suffix'), )
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_last_nullable_constraint(self) -> None:
         """Verifies author last field nullable."""
         params_tuple = (('Prefix', 'First', 'Middle', None, 'Suffix'), )
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_author_suffix_nullable_constraint(self) -> None:
         """Verifies author suffix field nullable."""
         params_tuple = (('Prefix', 'First', 'Middle', 'Last', None), )
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -645,7 +662,6 @@ class BaseDependentTableTestCase(BaseTableTestCase):
             ) for name in self.referenced_table_names
         )
 
-
     def setUp(self):
         """Creates and populates the necessary tables."""
         # Create the test table.
@@ -658,15 +674,15 @@ class BaseDependentTableTestCase(BaseTableTestCase):
                 self.referenced_table_names, self.insert_funcs
             ):
                 # Need to know the column names to generate input.
-                column_names = self.getTableColumnNames(table_name)
+                column_names = self.get_table_column_names(table_name)
                 params = (
                     i if 'ID' in column_name else column_name + str(i)
-                    for column_name in column_names[1:] # don't want ID column
+                    for column_name in column_names[1:]  # don't want ID column
                 )
                 try:
                     insert_func(self.db_path, *params)
-                except sqlite3.IntegrityError as e:
-                    err_msg = str(e)
+                except sqlite3.IntegrityError as exc:
+                    err_msg = str(exc)
                     if "FOREIGN KEY constraint failed" in err_msg:
                         self.fail(
                             "Check the order that table names are defined in "
@@ -674,9 +690,9 @@ class BaseDependentTableTestCase(BaseTableTestCase):
                             "tables must be listed before dependent tables."
                         )
                     else:
-                        self.fail(str(e))
-                except Exception as e:
-                    self.fail(str(e))
+                        self.fail(str(exc))
+                except sqlite3.Error as exc:
+                    self.fail(str(exc))
 
 
 class TitleAuthorTableTestCase(BaseDependentTableTestCase):
@@ -690,18 +706,18 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_insert_record_creation(self) -> None:
         """Verifies insert_titleauthor() creates a valid record."""
-        title_ids = self.getValidRecordIDs('Title')
-        author_ids = self.getValidRecordIDs('Author')
+        title_ids = self.get_valid_record_id('Title')
+        author_ids = self.get_valid_record_id('Author')
         author_ids = author_ids[-1:] + author_ids[:-1]
         params_list = tuple(zip(title_ids, author_ids))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
 
     def test_titleauthor_authorid_titleid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleID, AuthorID pairs."""
-        title_ids = self.getValidRecordIDs('Title')
-        author_ids = self.getValidRecordIDs('Author')
+        title_ids = self.get_valid_record_id('Title')
+        author_ids = self.get_valid_record_id('Author')
         params_list = next(
             ((t, a), ) * 2 for t in title_ids for a in author_ids if t != a
         )
@@ -711,30 +727,29 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_authorid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of authorid."""
-        title_ids = self.getValidRecordIDs('Title')
-        author_ids = self.getValidRecordIDs('Author')
+        title_ids = self.get_valid_record_id('Title')
+        author_ids = self.get_valid_record_id('Author')
         ids = set(title_ids).union(author_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
         )
         params_list = ((title_ids[0], invalid_id), )
-        self.assertForeignKeyTableConstraint(
+        self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
 
     def test_titleauthor_titleid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of titleid."""
-        title_ids = self.getValidRecordIDs('Title')
-        author_ids = self.getValidRecordIDs('Author')
+        title_ids = self.get_valid_record_id('Title')
+        author_ids = self.get_valid_record_id('Author')
         ids = set(title_ids).union(author_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
         )
         params_list = ((invalid_id, author_ids[0]), )
-        self.assertForeignKeyTableConstraint(
+        self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
-
 
 
 class WorkTableTestCase(BaseDependentTableTestCase):
@@ -749,18 +764,18 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_insert_record_createion(self) -> None:
         """Verifies insert_work() creates a valid record."""
-        ta_ids = self.getValidRecordIDs('TitleAuthor')
-        genre_ids = self.getValidRecordIDs('Genre')
+        ta_ids = self.get_valid_record_id('TitleAuthor')
+        genre_ids = self.get_valid_record_id('Genre')
         genre_ids = genre_ids[-1:] + genre_ids[:-1]
         params_list = tuple(zip(ta_ids, genre_ids))
-        self.assertCorrectRecordInsertion(
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
 
     def test_work_titleauthorid_genreid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleAuthorID, GenreID pairs."""
-        ta_ids = self.getValidRecordIDs('TitleAuthor')
-        genre_ids = self.getValidRecordIDs('Genre')
+        ta_ids = self.get_valid_record_id('TitleAuthor')
+        genre_ids = self.get_valid_record_id('Genre')
         params_list = next(
             ((ta, g), ) * 2 for ta in ta_ids for g in genre_ids if ta != g
         )
@@ -770,401 +785,30 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_genreid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of genreid."""
-        ta_ids = self.getValidRecordIDs('TitleAuthor')
-        genre_ids = self.getValidRecordIDs('Genre')
+        ta_ids = self.get_valid_record_id('TitleAuthor')
+        genre_ids = self.get_valid_record_id('Genre')
         ids = set(ta_ids).union(genre_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
         )
         params_list = ((ta_ids[0], invalid_id), )
-        self.assertForeignKeyTableConstraint(
+        self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
 
     def test_work_titleauthorid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of titleauthorid."""
-        ta_ids = self.getValidRecordIDs('TitleAuthor')
-        genre_ids = self.getValidRecordIDs('Genre')
+        ta_ids = self.get_valid_record_id('TitleAuthor')
+        genre_ids = self.get_valid_record_id('Genre')
         ids = set(ta_ids).union(genre_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
         )
         params_list = ((invalid_id, genre_ids[0]), )
-        self.assertForeignKeyTableConstraint(
+        self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
 
-
-
-
-
-
-
-
-
-
-# class TestAuthorsTable(BaseDatabaseModuleTestCase):
-#     table_name = 'Authors'
-
-#     def setUp(self):
-#         database.create_table_authors(self.db_path)
-
-#     def test_add_author_creates_valid_record(self):
-#         """Verifies add_author() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_author,
-#             [
-#                 ('FIRST', 'M', 'LAST', 'SUFFIX'),
-#                 ('first', 'm', 'last', 'suffix'),
-#                 ('Bob', None, 'Anderson', None)
-#             ]
-#         )
-
-#     def test_author_table_not_null_constraints(self):
-#         """Test not null constraints in Authors table."""
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_author,
-#             [
-#                 (None, 'MiddleName', 'LastName', 'Suffix'),
-#                 ('FirstName', 'MiddleName', None, 'Suffix')
-#             ]
-#         )
-
-# class TestPublishersTable(BaseDatabaseModuleTestCase):
-#     table_name = 'Publishers'
-
-#     def setUp(self):
-#         database.create_table_publishers(self.db_path)
-
-#     def test_add_publisher_creates_valid_record(self):
-#         """Verifies add_publisher() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_publisher, [('NAME', ), ('name', )]
-#         )
-
-#     def test_publisher_table_not_null_constraints(self):
-#         """Test not null constraints in Publishers table."""
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_publisher, [(None, )]
-#         )
-
-#     def test_publisher_table_name_unique_constraint(self):
-#         """Test unique constraints on Publishers Name column."""
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_publisher, ('NAME', ), ('NAME', )
-#         )
-
-# class TestGenresCategoriesTable(BaseDatabaseModuleTestCase):
-#     table_name = 'GenresCategories'
-
-#     def setUp(self):
-#         database.create_table_genrescategories(self.db_path)
-
-#     def test_add_genrecategory_creates_valid_record(self):
-#         """Verifies add_genrecategory() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_genrecategory,
-#             [('NAME', ), ('name', )]
-#         )
-
-#     def test_genrecategory_table_not_null_constraints(self):
-#         """Test not null constraints in GenresCategories table."""
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_genrecategory, [(None, )]
-#         )
-
-#     def test_genrecategory_table_name_unique_constraint(self):
-#         """Test unique constraints on GenresCategories Name column."""
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_genrecategory, ('NAME', ), ('NAME', )
-#         )
-
-# class TestConditionsTable(BaseDatabaseModuleTestCase):
-#     table_name = 'Conditions'
-
-#     def setUp(self):
-#         database.create_table_conditions(self.db_path)
-
-#     def test_add_condition_creates_valid_record(self):
-#         """Verifies add_condition() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_condition,
-#             [
-#                 ('NAME', 'DESCRIPTION'),
-#                 ('name', None),
-#             ]
-#         )
-
-#     def test_condition_table_not_null_constraints(self):
-#         """Test not null constraints in Conditions table."""
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_condition, [(None, 'Hello')]
-#         )
-
-#     def test_condition_table_name_unique_constraint(self):
-#         """Test unique constraints on Conditions Name column."""
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_condition,
-#             ('NAME', 'description a'), ('NAME', 'description b')
-#         )
-
-#     def test_condition_table_description_unique_constraint(self):
-#         """Test unique constraints on Conditions Description column."""
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_condition,
-#             ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
-#         )
-
-# class TestLocationsTable(BaseDatabaseModuleTestCase):
-#     table_name = 'Locations'
-
-#     def setUp(self):
-#         database.create_table_locations(self.db_path)
-
-#     def test_add_location_creates_valid_record(self):
-#         """Verifies add_location() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_location,
-#             [
-#                 ('NAME', 'DESCRIPTION'),
-#                 ('name', None)
-#             ]
-#         )
-
-#     def test_location_table_not_null_constraints(self):
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_location, [(None, 'Description')]
-#         )
-
-#     def test_location_table_name_unique_constraint(self):
-#         """
-#         Test unique constraints on Conditions Name column.
-#         """
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_location,
-#             ('NAME', 'description a'), ('NAME', 'description b')
-#         )
-
-#     def test_location_table_description_unique_constraint(self):
-#         """
-#         Test unique constraints on Conditions Description column.
-#         """
-#         self.assertUniqueTableConstraint(
-#             self.table_name, database.add_location,
-#             ('Name a', 'DESCRIPTION'), ('name b', 'DESCRIPTION')
-#         )
-
-# class TestISBNTable(BaseDatabaseModuleTestCase):
-#     table_name = 'ISBN'
-
-#     def setUp(self) -> None:
-#         """Creates ISBN table and all of its parent tables."""
-#         self.createParentTables()
-#         database.create_table_isbns(self.db_path)
-
-#     @classmethod
-#     def createParentTables(cls):
-#         """Creates each ISBN table parent table."""
-#         database.create_table_authors(cls.db_path)
-#         database.create_table_publishers(cls.db_path)
-#         database.create_table_genrescategories(cls.db_path)
-
-#     @classmethod
-#     def addNParentRows(cls, n: int) -> None:
-#         """Inserts n completely unique rows to each ISBN table parent table"""
-#         assert n > 1, (
-#             "TestISBNsTable.addParentRows() must insert >= 1 row. Set num >= 1"
-#         )
-#         for i in range(1, n + 1):
-#             database.add_author(
-#                 cls.db_path, f"AFirst{i}", f"AMid{i}", f"ALast{i}", f"ASuf{i}"
-#             )
-#             database.add_publisher(cls.db_path, f"PName{i}")
-#             database.add_genrecategory(cls.db_path, f"GCName{i}")
-
-#     @classmethod
-#     def getNInsertionParams(cls, n: int = 1) -> tuple[list[int | str]]:
-#         """
-#         Generates tuple of n lists containing insertion parameters for the
-#         ISBNs table. Inserts n sets of parent table records, providing n unique
-#         IDs, to allow each parameter list to be completely unique.
-#         """
-#         assert n > 1, (
-#             "TestBooksTable.getNInsertionParameterLists() must return >= 1 "
-#             "list. Set num_rows >= 1"
-#         )
-
-#         cls.addNParentRows(n)
-#         TitleIDs = cls.getValidRecordIDs('Titles')
-#         AuthorIDs = cls.getValidRecordIDs('Authors')
-#         PublisherIDs = cls.getValidRecordIDs('Publishers')
-#         GenreIDs = cls.getValidRecordIDs('GenresCategories')
-
-#         test_params_list = []
-#         for i in range(0, n):
-#             AuthorID = AuthorIDs[i]
-#             PublisherID = PublisherIDs[i]
-#             GenreID = GenreIDs[i]
-
-#             count = i + 1
-#             params = [
-#                 f'ISBN {count}', f'Title {count}', AuthorID, PublisherID,
-#                 2000 + count, count, GenreID, f'Desc{1}'
-#             ]
-#             test_params_list.append(params)
-
-#         return tuple(test_params_list)
-
-
-#     def test_add_isbn_creates_valid_record(self):
-#         """Verifies add_isbn() creates a valid record."""
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_isbn,
-#             [
-#                 ('ISBN', 'Title', AuthorID, PublisherID, 2000, 1, GenreID, 'desc'),
-#                 ('name', None)
-#             ]
-#         )
-
-# class TestBooksTable(BaseDatabaseModuleTestCase):
-#     table_name = 'Books'
-
-#     def setUp(self) -> None:
-#         """Creates Books table and all of its parent tables."""
-#         database.create_database(self.db_path)
-
-#     def addParentRows(self, num: int = 1) -> None:
-#         """Inserts n records into each of the Books table's parent tables."""
-#         assert num > 1, (
-#             "TestBooksTable.addParentRows() must insert >= 1 row. Set num >= 1"
-#         )
-#         for i in range(1, num + 1):
-#             database.add_condition(self.db_path, f"CName{i}", f"CDesc{i}")
-#             database.add_location(self.db_path, f"LName{i}", f"LDesc{i}")
-
-#     def getNInsertionParams(
-#             self, num_rows: int = 1
-#         ) -> tuple[tuple[int | str | float]]:
-#         """
-#         Generates tuple of n lists containing insertion parameters for the
-#         books table. Inserts n sets of parent table records to allow each
-#         parameter list to be completely unique.
-#         """
-#         assert num_rows > 1, (
-#             "TestBooksTable.getNInsertionParameterLists() must return >= 1 "
-#             "list. Set num_rows >= 1"
-#         )
-#         self.addParentRows(num_rows)
-#         test_params_list = []
-#         for i in range(0, num_rows):
-#             ConditionID = self.getValidRecordIDs('Conditions')[i]
-#             LocationID = self.getValidRecordIDs('Locations')[i]
-
-#             count = i + 1
-#             year = 2000 + count
-#             params = (
-#                 f'Title {count}', AuthorID, PublisherID, GenreID, year, count,
-#                 ConditionID, f'Desc {count}', f'{year}-01-01', count + 0.99,
-#                 LocationID, f'ISBN{count}'
-#             )
-#             test_params_list.append(params)
-#         return tuple(test_params_list)
-
-
-#     def test_add_book_creates_valid_record(self):
-#         """Verifies add_book() creates a valid record."""
-#         param_lists = self.getNInsertionParameterLists(1)
-
-#         params = (
-#             Title, AuthorID, PublisherID,
-#             GenreID, YearPublished, Edition,
-#             ConditionID, Description, DateAcquired,
-#             Price, LocationID, isbn
-#         )
-#         self.assertCorrectRecordInsertion(
-#             self.table_name, database.add_book, [params, params]
-#         )
-
-#     def test_books_table_foreign_key_constraints(self):
-#         """Test foreign key constraints in Books table."""
-#         parameters = (
-#             "Title", 999, 999, 999, 2000, 1, 999,
-#             "Description", "2000-01-01", 9.99, 999, "ISBN"
-#         )
-#         # Turn foreign key functionality on
-#         self.cursor.execute("PRAGMA foreign_keys = ON")
-#         with self.assertRaises(sqlite3.IntegrityError) as context:
-#             self.cursor.execute(
-#                 '''
-#                 INSERT INTO Books (Title, AuthorID, PublisherID, GenreID,
-#                 YearPublished, Edition, ConditionID, Description, DateAcquired,
-#                 Price, LocationID, ISBN)
-#                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-#                 ''',
-#                 parameters
-#             )
-#         error_message = str(context.exception)
-#         self.assertIn(
-#             "FOREIGN KEY constraint failed", error_message,
-#             "AuthorID, PublisherID, GenreID, ConditionID, and LocationID "
-#             "should have FOREIGN KEY constraints"
-#         )
-
-#     def test_book_table_not_null_constraints(self):
-
-#         AuthorID = self.getValidRecordIDs('Authors')[0]
-#         PublisherID = self.getValidRecordIDs('Publishers')[0]
-#         GenreID = self.getValidRecordIDs('GenresCategories')[0]
-#         ConditionID = self.getValidRecordIDs('Conditions')[0]
-#         LocationID = self.getValidRecordIDs('Locations')[0]
-
-#         YearPublished = 2000
-#         Edition = 1
-#         DateAcquired = '2020-01-01'
-#         Description = 'Description'
-#         Price = 9.99
-#         isbn = 'ISBN'
-
-#         self.assertNotNullTableConstraints(
-#             self.table_name, database.add_book,
-#             [
-#                 (None, AuthorID, PublisherID,
-#                 GenreID, YearPublished, Edition,
-#                 ConditionID, Description, DateAcquired,
-#                 Price, LocationID, isbn),
-#                 ('Title', None, PublisherID,
-#                 GenreID, YearPublished, Edition,
-#                 ConditionID, Description, DateAcquired,
-#                 Price, LocationID, isbn)
-#             ]
-#         )
-
-#     def test_book_table_isbn_unique_constraints(self):
-#         """Test unique constraints on Conditions Name and Description columns."""
-#         # self.assertUniqueTableConstraint(
-#         #     self.table_name, database.add_publisher,
-#         #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
-#         #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
-#         #     ),
-#         #     ('Title', None, PublisherID, GenreID, YearPublished, Edition,
-#         #     ConditionID, Description, DateAcquired, Price, LocationID, isbn
-#         #     )
-#         # )
-#     # ISBN
-
-# class TestCreateDatabaseModuleFunction(BaseDatabaseModuleTestCase):
-
-#     def test_create_database_function(self):
-#         database.create_database(self.db_path)
-#         existing_tables = self.getDatabaseTableNames()
-#         db_schema = {}
-#         for table_name in existing_tables:
-#             column_names = self.getTableColumnNames(table_name)
-#             db_schema[table_name] = column_names
-#         self.assertDictEqual(
-#             self.db_required_tables, db_schema,
-#             "\n\nFAILURE: Database schema is incorrect!"
-#         )
 
 def __disjoint_union(*iterables: Iterable) -> set[str]:
     """
@@ -1178,15 +822,13 @@ def __disjoint_union(*iterables: Iterable) -> set[str]:
     disjoint_union = union.symmetric_difference(intersection)
     return disjoint_union
 
-import inspect, sys
-
 
 __classes = inspect.getmembers(sys.modules[__name__], inspect.isclass)
 __db_dictionaries = [
     m
     for (_, class_obj) in __classes
     for m in inspect.getmembers(class_obj)
-    if m[0].startswith('db_') and type(m[1]) == dict
+    if m[0].startswith('db_') and isinstance(m[1], dict)
 ]
 __dict_names = set([d[0] for d in __db_dictionaries])
 __db_dictionaries = [d[1] for d in __db_dictionaries]
@@ -1201,7 +843,7 @@ assert len(__mismatched_dictionary_items) == 0, (
     """
 )
 
-### ENTRY POINT ###
+# ## ENTRY POINT ## #
 
 if __name__ == '__main__':
     unittest.main()
