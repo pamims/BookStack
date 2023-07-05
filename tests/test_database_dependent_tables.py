@@ -129,7 +129,7 @@ class WorkTableTestCase(BaseDependentTableTestCase):
     table_name = 'Work'
     referenced_table_names = ('Title', 'Author', 'TitleAuthor', 'Genre')
 
-    def test_work_insert_record_createion(self) -> None:
+    def test_work_insert_record_creation(self) -> None:
         """Verifies insert_work() creates a valid record."""
         ta_ids = self.get_valid_record_id('TitleAuthor')
         genre_ids = self.get_valid_record_id('Genre')
@@ -187,3 +187,22 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
     WorkID, FormatID must be NOT NULL
     PulbisherID, ISBN must be NULLABLE
     """
+
+    table_name = 'Publication'
+    referenced_table_names = (
+        'Title', 'Author', 'TitleAuthor',
+        'Genre', 'Work', 'Format', 'Publisher'
+    )
+
+    def test_publication_insert_record_creation(self) -> None:
+        """Verifies insert_publication() creates a valid record."""
+        work_ids = self.get_valid_record_id('Work')
+        fmt_ids = self.get_valid_record_id('Format')
+        fmt_ids = fmt_ids[-1:] + fmt_ids[:-1]
+        pub_ids = self.get_valid_record_id('Publisher')
+        pub_ids = pub_ids[-2:] + pub_ids[:-2]
+        isbns = (f'ISBN-{i}' for i in range(1, len(pub_ids) + 2))
+        params_list = tuple(zip(work_ids, fmt_ids, pub_ids, isbns))
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_list
+        )
