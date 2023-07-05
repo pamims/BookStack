@@ -40,22 +40,22 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         """Builds database, establishes connection, and sets cursor."""
-        cls.openDatabaseConnection()
+        cls.open_database_connection()
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Closes database connection and removes test database file."""
-        cls.closeDatabaseConnection()
+        cls.close_database_connection()
         cls.remove_database_file()
 
     @classmethod
-    def openDatabaseConnection(cls) -> None:
+    def open_database_connection(cls) -> None:
         """Opens database and gets cursor."""
         cls.connection = sqlite3.connect(cls.db_path)
         cls.cursor = cls.connection.cursor()
 
     @classmethod
-    def closeDatabaseConnection(cls) -> None:
+    def close_database_connection(cls) -> None:
         """Closes database and sets connection and cursor to None."""
         if cls.connection is not None:
             cls.cursor.close()
@@ -164,7 +164,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         def __str__(self) -> str:
             msg = super().args[0]
             name = type(self).__name__
-            msg = name + f": {msg}" if type(msg) is str else ""
+            msg = name + f": {msg}" if isinstance(msg, str) else ""
             return msg
 
     class NoDatabaseConnectionError(DatabaseError):
@@ -218,7 +218,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                     f"Mismatched items: {mismatch}"
                 )
 
-    def assertNotNullTableConstraints(
+    def assert_not_null_table_constraints(
             self, table_name: str, insert_row_func: Callable[..., None],
             params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
@@ -274,7 +274,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             f"due to some other error:\n{error_msg}"
         )
 
-    def assertUniqueTableConstraint(
+    def assert_unique_table_constraint(
             self, table_name: str, insert_row_func: Callable[..., None],
             params_tuple: Tuple[Tuple[Optional[str]], Tuple[Optional[str]]],
             num_items: int = 1
@@ -292,36 +292,40 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
                 f"Received: {params}, "
                 f"{', '.join(' == '.join([str(p)] * 2) for p in set(params))}"
             )
-        a_params, b_params = params_tuple
+        # params_tuple[0], params_tuple[1] = params_tuple
         try:
             column_names = self.get_table_column_names(table_name)
         except self.DatabaseError as exc:  # could raise either one
             self.fail(f"Could not assert UNIQUE constraints: {str(exc)}")
         # make sure the parameters were programmed in correctly
-        a_len = len(a_params)
-        assert a_len + 1 == len(column_names) and a_len == len(b_params), (
+        a_len = len(params_tuple[0])
+        assert (
+            a_len + 1 == len(column_names) and a_len == len(params_tuple[1])
+        ), (
             "Number of parameters for the insertion call does not match "
             "the number of columns that are supposed to be in the table."
         )
         # make sure exactly num_item item(s) in each parameter list is the same
-        matched_items = [(a, b) for a, b in zip(a_params, b_params) if a == b]
+        matched_items = [
+            (a, b) for a, b in zip(params_tuple[0], params_tuple[1]) if a == b
+        ]
         assert len(matched_items) == num_items, (
             f"To check UNIQUE constraints properly, the parameter lists must "
             f"contain exactly {num_items} item(s) in common. The particular "
             f"value being tested should be the common item.\nMatching items: "
             f"{'None' if len(matched_items) == 0 else matched_items}, \n"
-            f"First set: {a_params}\nSecond set: {b_params}\n"
-            f"{'; '.join(f'{a} != {b}' for a, b in zip(a_params, b_params))}"
+            f"First set: {params_tuple[0]}\nSecond set: {params_tuple[1]}\n"
+            f"{'; '.join(f'{a} != {b}' for a, b in zip(*params_tuple))}"
         )
         # get the indices of each match
         column_indices = [
-            a_params.index(match[0]) + 1 for match in matched_items
+            params_tuple[0].index(match[0]) + 1 for match in matched_items
         ]
         columns_tested = tuple(column_names[i] for i in column_indices)
         msg = f"{table_name} [{columns_tested}] UNIQUE constraint fails."
         with self.assertRaises(sqlite3.IntegrityError, msg=msg) as ctx:
-            insert_row_func(self.db_path, *a_params)
-            insert_row_func(self.db_path, *b_params)
+            insert_row_func(self.db_path, *params_tuple[0])
+            insert_row_func(self.db_path, *params_tuple[1])
         error_msg = str(ctx.exception)
         self.assertIn("UNIQUE constraint failed", error_msg, msg)
 
@@ -385,21 +389,22 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
         create_table_functions dictionary.
         """
         super().__init__(methodName)
-        self.insert_function = self.getTableFunctionFromDictionary(
+        self.insert_function = self.get_table_function_from_dictionary(
             self.table_name, self.db_insert_functions
         )
 
     def setUp(self) -> None:
         """Create necessary table for testing based on table_name."""
-        create_table = self.getTableFunctionFromDictionary(
+        create_table = self.get_table_function_from_dictionary(
             self.table_name, self.db_create_table_functions
         )
         create_table(self.db_path)
 
-    def getTableFunctionFromDictionary(
+    def get_table_function_from_dictionary(
             self: BaseDatabaseModuleTestCase, table_name: str,
             dictionary: dict[str, Callable[[str, tuple[Any, ...]], Any]]
     ) -> Callable[[str, tuple[Any, ...]], Any]:
+        """Retrieves function from a db_ dictionary based on table_name"""
         self.validate_table_name(
             table_name, dictionary,
             f"Cannot locate function. Table '{table_name}' is not defined "
@@ -450,7 +455,7 @@ class TitleTableTestCase(BaseTableTestCase):
     def test_title_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on title Name field."""
         params_tuple = ((None, ), )
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -473,14 +478,14 @@ class GenreTableTestCase(BaseTableTestCase):
     def test_genre_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the genre name field."""
         params_tuple = (('Name', ), ('Name', ))
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_genre_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on genre name field."""
         params_tuple = ((None, ), )
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -503,14 +508,14 @@ class FormatTableTestCase(BaseTableTestCase):
     def test_format_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the format name field."""
         params_tuple = (('Name', ), ('Name', ))
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_format_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on format name field."""
         params_tuple = ((None, ), )
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -533,14 +538,14 @@ class PublisherTableTestCase(BaseTableTestCase):
     def test_publisher_name_unique_constraint(self) -> None:
         """Verifies unique constraint on the publisher name field."""
         params_tuple = (('Name', ), ('Name', ))
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_publisher_name_not_null_constraint(self) -> None:
         """Verifies not null constraint on publisher name field."""
         params_tuple = ((None, ), )
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -563,14 +568,14 @@ class ConditionTableTestCase(BaseTableTestCase):
     def test_condition_name_unique_constraint(self) -> None:
         """Verifies unique constraint on condition name field."""
         params_tuple = (('Name', 'Description1'), ('Name', 'Description2'))
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_tuple
         )
 
     def test_condition_description_unique_constraint(self) -> None:
         """Verifies unique constraint on condition description field."""
         params_tuple = (('Name1', 'Description'), ('Name2', 'Description'))
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -579,7 +584,7 @@ class ConditionTableTestCase(BaseTableTestCase):
         Verifies not null constraints on condition name and description fields.
         """
         params_tuple = ((None, 'Description'), ('Name', None))
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -605,7 +610,7 @@ class AuthorTableTestCase(BaseTableTestCase):
     def test_author_first_not_null_constraint(self) -> None:
         """Verifies not null constraint on author first field."""
         params_tuple = (('Prefix', None, 'Middle', 'Last', 'Suffix'), )
-        self.assertNotNullTableConstraints(
+        self.assert_not_null_table_constraints(
             self.table_name, self.insert_function, params_tuple
         )
 
@@ -652,12 +657,12 @@ class BaseDependentTableTestCase(BaseTableTestCase):
         """
         super().__init__(methodName)
         self.insert_funcs = tuple(
-            self.getTableFunctionFromDictionary(
+            self.get_table_function_from_dictionary(
                 name, self.db_insert_functions
             ) for name in self.referenced_table_names
         )
         self.create_table_funcs = tuple(
-            self.getTableFunctionFromDictionary(
+            self.get_table_function_from_dictionary(
                 name, self.db_create_table_functions
             ) for name in self.referenced_table_names
         )
@@ -721,7 +726,7 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
         params_list = next(
             ((t, a), ) * 2 for t in title_ids for a in author_ids if t != a
         )
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_list, 2
         )
 
@@ -779,7 +784,7 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         params_list = next(
             ((ta, g), ) * 2 for ta in ta_ids for g in genre_ids if ta != g
         )
-        self.assertUniqueTableConstraint(
+        self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_list, 2
         )
 
@@ -815,7 +820,7 @@ def __disjoint_union(*iterables: Iterable) -> set[str]:
     Takes an arbitrary number of iterables and subtracts their intersection
     from their union. This is specifically used to assert that all of the
     dictionary keys match and provide a warning if something is wrong with one
-    of the dictionary definitions.
+    of the dictionary definitions -- if disjoint union is 0, assertion passes.
     """
     union = set().union(*iterables)
     intersection = set(iterables[0]).intersection(*iterables[1:])
@@ -830,7 +835,7 @@ __db_dictionaries = [
     for m in inspect.getmembers(class_obj)
     if m[0].startswith('db_') and isinstance(m[1], dict)
 ]
-__dict_names = set([d[0] for d in __db_dictionaries])
+__dict_names = {d[0] for d in __db_dictionaries}
 __db_dictionaries = [d[1] for d in __db_dictionaries]
 
 __mismatched_dictionary_items = __disjoint_union(*__db_dictionaries)
