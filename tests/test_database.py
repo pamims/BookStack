@@ -2,7 +2,7 @@ import unittest
 import os
 import sqlite3
 from source import database
-from typing import Callable, Iterable, Optional, Any
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 ### BASE CLASSES ###
 class BaseDatabaseModuleTestCase(unittest.TestCase):
@@ -30,7 +30,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
     cursor: sqlite3.Cursor = None
 
     def tearDown(self) -> None:
-        # Clean the database after each test
+        """Clean the database after each test"""
         self.removeAllDatabaseTables()
 
     @classmethod
@@ -46,11 +46,13 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     @classmethod
     def openDatabaseConnection(cls) -> None:
+        """Opens database and gets cursor."""
         cls.connection = sqlite3.connect(cls.db_path)
         cls.cursor = cls.connection.cursor()
 
     @classmethod
     def closeDatabaseConnection(cls) -> None:
+        """Closes database and sets connection and cursor to None."""
         if cls.connection is not None:
             cls.cursor.close()
             cls.connection.close()
@@ -59,34 +61,36 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     @classmethod
     def removeDatabaseFile(cls) -> None:
+        """Finds and removes test database file as cleanup."""
         if os.path.exists(cls.db_path):
             os.remove(cls.db_path)
 
     @classmethod
     def removeAllDatabaseTables(cls) -> None:
+        """Drops all tables in the database."""
         user_defined_tables = cls.getDatabaseTableNames()
         for table in user_defined_tables:
-            query = f"DROP TABLE IF EXISTS {table}"
-            cls.cursor.execute(query)
+            cls.cursor.execute(f"DROP TABLE IF EXISTS {table}")
         cls.connection.commit()
 
     @classmethod
     def validateCursor(cls, msg: str = None) -> None:
+        """Errors when there is no cursor object."""
         if cls.cursor is None:
             if msg is None:
-                msg = "No database connection."
+                msg = "No cursor object exists."
             raise cls.NoDatabaseConnectionError(msg)
 
     @classmethod
     def validateTableName(
         cls, table_name: str, db_schema: Iterable, msg: str = None
     ) -> None:
+        """Ensures the table name is in the given iterable."""
         if table_name not in db_schema:
             if msg is None:
-                valid_list = ', '.join(list(db_schema))
                 msg = (
                     f"Invalid table name: '{table_name}'"
-                    f"Valid names include: {valid_list}"
+                    f"Valid names include: {', '.join(list(db_schema))}"
                 )
             raise cls.DatabaseTableError(msg)
 
@@ -100,19 +104,16 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             AND name NOT LIKE 'sqlite_%'
             '''
         )
-        result = cls.cursor.fetchall()
-        if result is not None:
-            result = [row[0] for row in result]
+        result = [row[0] for row in cls.cursor.fetchall()]
         return result
 
     @classmethod
     def getTableColumnNames(cls, table_name: str) -> Optional[list[str]]:
         """Get the column names from a specific table in the database."""
-        valid_list = ', '.join(list(cls.db_required_tables))
         cls.validateTableName(
             table_name, cls.db_required_tables,
-            f"Cannot retrieve columns for '{table_name} table.\n"
-            f"Valid names include: {valid_list}\n"
+            f"Cannot retrieve columns for '{table_name}' table.\n"
+            f"Valid names include: {', '.join(list(cls.db_required_tables))}\n"
             f"Invalid table name: {table_name}\n"
         )
         table_names = cls.getDatabaseTableNames()
@@ -120,32 +121,31 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             return [] # no columns in table that doesn't exist
         cls.cursor.execute(f"PRAGMA table_info({table_name})")
         result = cls.cursor.fetchall()
-        if result is not None:
-            result = [row[1] for row in result]
+        # if result is not None: just return the empty list
+        result = [row[1] for row in result]
         return result
 
     @classmethod
     def getValidRecordIDs(cls, table_name: str) -> Optional[list[int]]:
+        """Returns all ID (primary key) column values from a table."""
         cls.validateCursor("Could not get Record IDs. No database connection.")
-        valid_list_str = ', '.join(list(cls.db_required_tables))
         cls.validateTableName(
             table_name, cls.db_required_tables,
             f"Cannot retrieve columns for '{table_name}' table.\n"
-            f"Valid names include: {valid_list_str}\n"
+            f"Valid names include: {', '.join(list(cls.db_required_tables))}\n"
             f"Invalid table name: {table_name}\n"
         )
         table_names = cls.getDatabaseTableNames()
-        table_list_str = ', '.join(list(table_names))
         cls.validateTableName(
             table_name, table_names,
             f"Cannot retrieve columns for '{table_name}' table.\n"
-            f"Tables in database: {table_list_str}\n"
+            f"Tables in database: {', '.join(list(table_names))}\n"
             f"Table name given: {table_name}\n"
         )
         cls.cursor.execute(f"SELECT ID FROM {table_name} ORDER BY ID")
         result = cls.cursor.fetchall()
-        if result is not None:
-            result = [int(item[0]) for item in result]
+        # if result is not None: just return the empty list
+        result = [int(item[0]) for item in result]
         return result
 
     class DatabaseError(Exception):
@@ -164,17 +164,15 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertCorrectRecordInsertion(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]]]
+            params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
         """
-        Asserts correct table insertion. Includes:
-        Record exists
-        ID AUTOINCREMENT
-        Number of fields
-        Correct values
+        Asserts correct table insertion. Includes: Record exists,
+        ID AUTOINCREMENT, Number of fields, Correct values
         """
         self.validateTableName(table_name, self.db_required_tables)
         self.validateCursor()
+
         for params in params_tuple:
             try:
                 insert_row_func(self.db_path, *params)
@@ -211,13 +209,14 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertNotNullTableConstraints(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]]]
+            params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
         """Asserts NOT NULL constraint detected when adding record."""
         try:
             column_names = self.getTableColumnNames(table_name)
         except self.DatabaseError as e: # could raise either one
             self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
+
         for params in params_tuple:
             # make sure only one None is in the parameters
             assert params.count(None) == 1, (
@@ -242,7 +241,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
 
     def assertForeignKeyTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]]]
+            params_tuple: Tuple[Tuple[Optional[str]], ...]
     ) -> None:
         """Asserts FOREIGN KEY constraint detected when adding record."""
         assert len(params_tuple) == 1, (
@@ -264,13 +263,12 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             f"due to some other error:\n{error_msg}"
         )
 
-
     def assertUniqueTableConstraint(
             self, table_name: str, insert_row_func: Callable[..., None],
-            params_tuple: tuple[tuple[Optional[str]], tuple[Optional[str]]],
+            params_tuple: Tuple[Tuple[Optional[str]], Tuple[Optional[str]]],
             num_items: int = 1
     ) -> None:
-        """Asserts NOT NULL constraint detected when adding record."""
+        """Asserts UNIQUE constraint detected when adding record."""
         assert len(params_tuple) == 2, (
             "Wrong number of parameter sets. To assert unique table "
             "constraints, exactly two parameter sets must be given.\nSets "
@@ -287,7 +285,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         try:
             column_names = self.getTableColumnNames(table_name)
         except self.DatabaseError as e: # could raise either one
-            self.fail(f"Could not assert NOT NULL constraints: {str(e)}")
+            self.fail(f"Could not assert UNIQUE constraints: {str(e)}")
         # make sure the parameters were programmed in correctly
         a_len = len(a_params)
         assert a_len + 1 == len(column_names) and a_len == len(b_params), (
@@ -295,18 +293,14 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
             "the number of columns that are supposed to be in the table."
         )
         # make sure exactly num_item item(s) in each parameter list is the same
-        matched_items = []
-        param_pairs = tuple(zip(a_params, b_params))
-        for a, b in param_pairs:
-            if a == b:
-                matched_items.append((a, b))
+        matched_items = [(a, b) for a, b in zip(a_params, b_params) if a == b]
         assert len(matched_items) == num_items, (
             f"To check UNIQUE constraints properly, the parameter lists must "
             f"contain exactly {num_items} item(s) in common. The particular "
             f"value being tested should be the common item.\nMatching items: "
             f"{'None' if len(matched_items) == 0 else matched_items}, \n"
             f"First set: {a_params}\nSecond set: {b_params}\n"
-            f"{'; '.join(f'{a} != {b}' for a, b in param_pairs)}"
+            f"{'; '.join(f'{a} != {b}' for a, b in zip(a_params, b_params))}"
         )
         # get the indices of each match
         column_indices = [
@@ -394,21 +388,28 @@ class BaseTableTestCase(BaseDatabaseModuleTestCase):
             self: BaseDatabaseModuleTestCase, table_name: str,
             dictionary: dict[str, Callable[[str, tuple[Any, ...]], Any]]
     ) -> Callable[[str, tuple[Any, ...]], Any]:
-        if table_name not in dictionary:
-            self.fail(
-                f"Cannot locate function. Table '{table_name}' is not defined "
-                f"in the provided dictionary. Available keys are: "
-                f"{', '.join(dictionary)}"
-            )
+        self.validateTableName(
+            table_name, dictionary,
+            f"Cannot locate function. Table '{table_name}' is not defined "
+            f"in the provided dictionary. Available keys are: "
+            f"{', '.join(dictionary)}"
+        )
         func: Callable[[str, tuple[Any, ...]], Any] = (
             dictionary[table_name]
         )
-        if func is None:
-            self.fail(
-                f"'{table_name}' table function has not been added to the "
-                f"provided dictionary. Verify function exists and add it to "
-                f"the appropriate dictionary."
-        )
+        if not (inspect.isfunction(func) or inspect.ismethod(func)):
+            if func is None:
+                msg = (
+                    f"'{table_name}' table function has not been added to the "
+                    f"provided dictionary. Verify function exists and add it "
+                    f"to the appropriate dictionary."
+                )
+            else:
+                msg = (
+                    f"'{table_name}' table function is not a function or "
+                    f"method. Verify correct function definition."
+                )
+            self.fail(msg)
         return func
 
 
@@ -649,9 +650,6 @@ class BaseDependentTableTestCase(BaseTableTestCase):
         """Creates and populates the necessary tables."""
         # Create the test table.
         super().setUp()
-        # Turn foreign keys on.
-        # self.cursor.execute("PRAGMA foreign_keys = ON")
-        # Make all the tables -- establish test environment.
         for create_table_func in self.create_table_funcs:
             create_table_func(self.db_path)
         # Make 5 insertions in each table.
@@ -691,7 +689,7 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
     referenced_table_names = ('Title', 'Author')
 
     def test_titleauthor_insert_record_creation(self) -> None:
-        """Verifies insert_titleauthor() creates a valid record"""
+        """Verifies insert_titleauthor() creates a valid record."""
         title_ids = self.getValidRecordIDs('Title')
         author_ids = self.getValidRecordIDs('Author')
         author_ids = author_ids[-1:] + author_ids[:-1]
@@ -701,18 +699,18 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
         )
 
     def test_titleauthor_authorid_titleid_unique_constraint(self) -> None:
-        """Verifies the unique constraint of TitleID, AuthorID pairs"""
+        """Verifies the unique constraint of TitleID, AuthorID pairs."""
         title_ids = self.getValidRecordIDs('Title')
         author_ids = self.getValidRecordIDs('Author')
         params_list = next(
             ((t, a), ) * 2 for t in title_ids for a in author_ids if t != a
         )
-        #params_list = (param, param)
         self.assertUniqueTableConstraint(
             self.table_name, self.insert_function, params_list, 2
         )
 
     def test_titleauthor_authorid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key constraint of authorid."""
         title_ids = self.getValidRecordIDs('Title')
         author_ids = self.getValidRecordIDs('Author')
         ids = set(title_ids).union(author_ids)
@@ -725,6 +723,7 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
         )
 
     def test_titleauthor_titleid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key constraint of titleid."""
         title_ids = self.getValidRecordIDs('Title')
         author_ids = self.getValidRecordIDs('Author')
         ids = set(title_ids).union(author_ids)
@@ -749,6 +748,7 @@ class WorkTableTestCase(BaseDependentTableTestCase):
     referenced_table_names = ('Title', 'Author', 'TitleAuthor', 'Genre')
 
     def test_work_insert_record_createion(self) -> None:
+        """Verifies insert_work() creates a valid record."""
         ta_ids = self.getValidRecordIDs('TitleAuthor')
         genre_ids = self.getValidRecordIDs('Genre')
         genre_ids = genre_ids[-1:] + genre_ids[:-1]
@@ -758,18 +758,18 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         )
 
     def test_work_titleauthorid_genreid_unique_constraint(self) -> None:
-        """Verifies the unique constraint of TitleAuthorID, GenreID pairs"""
+        """Verifies the unique constraint of TitleAuthorID, GenreID pairs."""
         ta_ids = self.getValidRecordIDs('TitleAuthor')
         genre_ids = self.getValidRecordIDs('Genre')
         params_list = next(
             ((ta, g), ) * 2 for ta in ta_ids for g in genre_ids if ta != g
         )
-        #params_list = (param, param)
         self.assertUniqueTableConstraint(
             self.table_name, self.insert_function, params_list, 2
         )
 
     def test_work_genreid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key constraint of genreid."""
         ta_ids = self.getValidRecordIDs('TitleAuthor')
         genre_ids = self.getValidRecordIDs('Genre')
         ids = set(ta_ids).union(genre_ids)
@@ -782,6 +782,7 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         )
 
     def test_work_titleauthorid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key constraint of titleauthorid."""
         ta_ids = self.getValidRecordIDs('TitleAuthor')
         genre_ids = self.getValidRecordIDs('Genre')
         ids = set(ta_ids).union(genre_ids)
