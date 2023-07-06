@@ -9,7 +9,7 @@ from source import database
 DB_DICT_SCHEMA = {
         'Title': ['ID', 'Name'],
         'Author': ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
-        'Genre': ['ID', 'Name'],
+        'Genre': ['ID', 'GenreID', 'Name'],
         'TitleAuthor': ['ID', 'TitleID', 'AuthorID'],
         'Work': ['ID', 'TitleAuthorID', 'GenreID'],
 
@@ -35,7 +35,7 @@ DB_DICT_INSERT_FUNCS = {
 
         'Condition': database.insert_condition,
         'Location': database.insert_location,
-        'Book': None
+        'Book': database.insert_book
     }
 
 DB_DICT_CREATE_TABLE_FUNCS = {
@@ -51,7 +51,7 @@ DB_DICT_CREATE_TABLE_FUNCS = {
 
         'Condition': database.create_table_condition,
         'Location': database.create_table_location,
-        'Book': None
+        'Book': database.create_table_book
     }
 
 

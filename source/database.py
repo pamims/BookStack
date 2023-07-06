@@ -184,6 +184,24 @@ def create_table_location(cursor: sqlite3.Cursor) -> None:
     )
 
 
+@db_connection
+def create_table_book(cursor: sqlite3.Cursor) -> None:
+    """Create book table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Book (
+            ID INTEGER PRIMARY KEY,
+            PublicationID INTEGER NOT NULL,
+            ConditionID INTEGER,
+            LocationID INTEGER,
+            FOREIGN KEY (PublicationID) REFERENCES Publication(ID),
+            FOREIGN KEY (ConditionID) REFERENCES Condition(ID),
+            FOREIGN KEY (LocationID) REFERENCES Location(ID)
+        )
+        '''
+    )
+
+
 # Insertion Functions
 
 
@@ -313,5 +331,18 @@ def insert_location(
         '''
         INSERT INTO Location (Name, Description)
         VALUES (?, ?)
+        ''', args
+    )
+
+
+@db_connection
+def insert_book(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
+    """Insert record into book table."""
+    cursor.execute(
+        '''
+        INSERT INTO Book (PublicationID, ConditionID, LocationID)
+        VALUES (?, ?, ?)
         ''', args
     )

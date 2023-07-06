@@ -333,3 +333,101 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
+
+
+class BookTableTestCase(BaseDependentTableTestCase):
+    """
+    Tests for validating Book table function. Books must be
+    inserted correctly with auto-incrementing ID's.
+    PublicationID, ConditionID, LocationID must be FOREIGN KEYs
+    PublicationID must be NOT NULL
+    ConditionID and LocationID must be NULLABLE
+    """
+
+    table_name = 'Book'
+    referenced_table_names = (
+        'Title', 'Author', 'TitleAuthor',
+        'Genre', 'Work', 'Format', 'Publisher', 'Publication',
+        'Condition', 'Location'
+    )
+
+    def test_book_insert_record_creation(self) -> None:
+        """Verifies insert_book() creates a valid record."""
+        p_ids = self.get_valid_record_ids('Publication')
+        c_ids = self.get_valid_record_ids('Condition')
+        c_ids = c_ids[-1:] + c_ids[:-1]
+        l_ids = self.get_valid_record_ids('Location')
+        l_ids = l_ids[-2:] + l_ids[:-2]
+        params_list = tuple(zip(p_ids, c_ids, l_ids))
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_publicationid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of publicationid."""
+        p_ids = self.get_valid_record_ids('Publication')
+        c_ids = self.get_valid_record_ids('Condition')
+        l_ids = self.get_valid_record_ids('Location')
+        ids = set(p_ids).union(c_ids, l_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((invalid_id, c, L), ) for c, L in zip(c_ids, l_ids)
+        )
+        self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_conditionid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of conditionid."""
+        p_ids = self.get_valid_record_ids('Publication')
+        c_ids = self.get_valid_record_ids('Condition')
+        l_ids = self.get_valid_record_ids('Location')
+        ids = set(p_ids).union(c_ids, l_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((p, invalid_id, L), ) for p, L in zip(p_ids, l_ids)
+        )
+        self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_locationid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of locationid."""
+        p_ids = self.get_valid_record_ids('Publication')
+        c_ids = self.get_valid_record_ids('Condition')
+        l_ids = self.get_valid_record_ids('Location')
+        ids = set(p_ids).union(c_ids, l_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((p, c, invalid_id), ) for p, c in zip(p_ids, c_ids)
+        )
+        self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_publicationid_not_null_constraint(self) -> None:
+        """Verifies the not null constraints of workid and publisherid"""
+        c_ids = self.get_valid_record_ids('Condition')
+        l_ids = self.get_valid_record_ids('Location')
+        params_list = ((None, c_ids[0], l_ids[0]), )
+        self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_conditionid_nullable(self) -> None:
+        """Verifies conditionid is nullable."""
+        p_ids = self.get_valid_record_ids('Publication')
+        l_ids = self.get_valid_record_ids('Location')
+        params_list = ((p_ids[0], None, l_ids[1]), )
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_book_locationid_nullable(self) -> None:
+        """Verifies publisherid is nullable."""
+        p_ids = self.get_valid_record_ids('Work')
+        c_ids = self.get_valid_record_ids('Format')
+        params_list = ((p_ids[0], c_ids[1], None), )
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_list
+        )
