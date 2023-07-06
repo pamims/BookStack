@@ -155,9 +155,7 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         ta_ids = self.get_valid_record_ids('TitleAuthor')
         genre_ids = self.get_valid_record_ids('Genre')
         ids = set(ta_ids).union(genre_ids)
-        invalid_id = next(
-            i for i in range(1, len(ids) + 2) if i not in ids
-        )
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
         params_list = ((ta_ids[0], invalid_id), )
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
@@ -212,7 +210,6 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         w_ids = self.get_valid_record_ids('Work')
         f_ids = self.get_valid_record_ids('Format')
         p_ids = self.get_valid_record_ids('Publisher')
-        # ids = set(w_ids).union(f_ids, w_ids)
         unique_list = next(
             ((w, f, p), ) * 2
             for w in w_ids for f in f_ids for p in p_ids
@@ -235,5 +232,47 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
             (w, f, p, "ISBN-0") for w, f, p in (w_ids, f_ids, p_ids)
         )
         self.assert_unique_table_constraint(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_publication_workid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of workid."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
+        ids = set(w_ids).union(f_ids, p_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((invalid_id, f, p, 'ISBN-1'), ) for f, p in (f_ids, p_ids)
+        )
+        self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_publication_formatid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of formatid."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
+        ids = set(w_ids).union(f_ids, p_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((w, invalid_id, p, 'ISBN-1'), ) for w, p in (w_ids, p_ids)
+        )
+        self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_publication_publisherid_foreign_key_constraint(self) -> None:
+        """Verifies the foreign key contraint of publisherid."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
+        ids = set(w_ids).union(f_ids, p_ids)
+        invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
+        params_list = next(
+            ((w, f, invalid_id, 'ISBN-1'), ) for w, f in (w_ids, f_ids)
+        )
+        self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
