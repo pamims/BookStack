@@ -5,13 +5,13 @@ import sqlite3
 from typing import Callable, Iterable, Optional, Tuple
 import unittest
 
-from tests import db_test_config
+from tests.database_tests import DB_DICT_SCHEMA
 
 
 class BaseDatabaseModuleTestCase(unittest.TestCase):
     """Base test case for all database tests."""
     db_path = 'test_book_stack_database.db'
-    db_required_tables = db_test_config.DB_DICT_SCHEMA
+    db_required_tables = DB_DICT_SCHEMA
 
     # These are [class members] because I want to use them in setUpClass and
     # tearDownClass -- the connection only needs established once per TestCase

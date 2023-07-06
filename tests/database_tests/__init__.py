@@ -1,4 +1,10 @@
-"""Config file holds dictionaries used in TestCase classes."""
+"""
+Sets up DB_DICT constants used in the testcases.
+
+DB_DICT_SCHEMA -- Defines the required table, column structure of the database
+DB_DICT_INSERT_FUNCS -- Maps table names to corresponding insert functions
+DB_DICT_CREATE_TABLE_FUNCS -- Maps table names to create table functions
+"""
 
 import inspect
 import sys
@@ -6,6 +12,7 @@ import sys
 from typing import Iterable
 from source import database
 
+# ## CONSTANTS ## #
 DB_DICT_SCHEMA = {
         'Title': ['ID', 'Name'],
         'Author': ['ID', 'Prefix', 'First', 'Middle', 'Last', 'Suffix'],
@@ -55,6 +62,7 @@ DB_DICT_CREATE_TABLE_FUNCS = {
     }
 
 
+# ## ASSERT DB_DICT KEYS MATCH ## #
 def __disjoint_union(*iterables: Iterable) -> set[str]:
     """
     Takes an arbitrary number of iterables and subtracts their intersection
@@ -70,16 +78,22 @@ def __disjoint_union(*iterables: Iterable) -> set[str]:
     return disjoint_union
 
 
-# ## Assert dictionaries match ## #
-__members = inspect.getmembers(
-    sys.modules[__name__], lambda x: isinstance(x, dict)
-)
-__db_dictionaries = [m[1] for m in __members if m[0].startswith('DB_DICT_')]
+def __assert_dictionary_keys_match() -> None:
+    """Verifies the DB_DICT_* keys match so the tests don't break."""
+    members = inspect.getmembers(
+        sys.modules[__name__], lambda x: isinstance(x, dict)
+    )
+    db_dictionaries = [
+        m[1] for m in members if m[0].startswith('DB_DICT_')
+    ]
+    mismatched_dictionary_items = __disjoint_union(*db_dictionaries)
+    assert len(mismatched_dictionary_items) == 0, (
+        f"""
+        Keys representing database tables are mismatched across locations.
+        Verify keys are correct.\nMismatched keys:
+        {mismatched_dictionary_items}
+        """
+    )
 
-__mismatched_dictionary_items = __disjoint_union(*__db_dictionaries)
-assert len(__mismatched_dictionary_items) == 0, (
-    f"""
-    Keys representing database tables are mismatched across locations.
-    Verify keys are correct.\nMismatched keys: {__mismatched_dictionary_items}
-    """
-)
+
+__assert_dictionary_keys_match()

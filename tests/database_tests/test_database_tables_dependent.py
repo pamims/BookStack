@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from tests.test_database_tables import BaseTableTestCase
+from tests.database_tests.test_database_tables import BaseTableTestCase
 
 
 class BaseDependentTableTestCase(BaseTableTestCase):
