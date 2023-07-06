@@ -221,5 +221,19 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         isbn_list = tuple((f'ISBN-{i}', ) for i in range(1, 3))
         params_list = (unique_list[i] + isbn_list[i] for i in range(2))
         self.assert_unique_table_constraint(
-            self.table_name, self.insert_funcs, params_list, 3
+            self.table_name, self.insert_function, params_list, 3
+        )
+
+    def test_publication_isbn_unique_constraint(self) -> None:
+        """Verifies the unique constraint of ISBN."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        f_ids = f_ids[-1:] + f_ids[:-1]
+        p_ids = self.get_valid_record_ids('Publisher')
+        p_ids = p_ids[-2:] + p_ids[:-2]
+        params_list = tuple(
+            (w, f, p, "ISBN-0") for w, f, p in (w_ids, f_ids, p_ids)
+        )
+        self.assert_unique_table_constraint(
+            self.table_name, self.insert_function, params_list
         )
