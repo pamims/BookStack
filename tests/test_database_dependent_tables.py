@@ -276,3 +276,16 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
         )
+
+    def test_publication_workid_formatid_not_null_constraints(self) -> None:
+        """Verifies the not null constraints of workid and publisherid"""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
+        params_list = (
+            (None, f_ids[0], p_ids[0], 'ISBN1'),
+            (w_ids[1], f_ids[1], None, 'ISBN2')
+        )
+        self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_list
+        )
