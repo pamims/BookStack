@@ -216,7 +216,7 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
             if w != f and f != p and p != w
         )
         isbn_list = tuple((f'ISBN-{i}', ) for i in range(1, 3))
-        params_list = (unique_list[i] + isbn_list[i] for i in range(2))
+        params_list = tuple(unique_list[i] + isbn_list[i] for i in range(2))
         self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_list, 3
         )
@@ -229,7 +229,7 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         p_ids = self.get_valid_record_ids('Publisher')
         p_ids = p_ids[-2:] + p_ids[:-2]
         params_list = tuple(
-            (w, f, p, "ISBN-0") for w, f, p in (w_ids, f_ids, p_ids)
+            (w_ids[i], f_ids[i], p_ids[i], "ISBN-0") for i in range(2)
         )
         self.assert_unique_table_constraint(
             self.table_name, self.insert_function, params_list
@@ -243,7 +243,7 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         ids = set(w_ids).union(f_ids, p_ids)
         invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
         params_list = next(
-            ((invalid_id, f, p, 'ISBN-1'), ) for f, p in (f_ids, p_ids)
+            ((invalid_id, f, p, 'ISBN-1'), ) for f, p in zip(f_ids, p_ids)
         )
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
@@ -257,7 +257,7 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         ids = set(w_ids).union(f_ids, p_ids)
         invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
         params_list = next(
-            ((w, invalid_id, p, 'ISBN-1'), ) for w, p in (w_ids, p_ids)
+            ((w, invalid_id, p, 'ISBN-1'), ) for w, p in zip(w_ids, p_ids)
         )
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
@@ -271,7 +271,7 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         ids = set(w_ids).union(f_ids, p_ids)
         invalid_id = next(i for i in range(1, len(ids) + 2) if i not in ids)
         params_list = next(
-            ((w, f, invalid_id, 'ISBN-1'), ) for w, f in (w_ids, f_ids)
+            ((w, f, invalid_id, 'ISBN-1'), ) for w, f in zip(w_ids, f_ids)
         )
         self.assert_foreign_key_constraints(
             self.table_name, self.insert_function, params_list
@@ -284,8 +284,27 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         p_ids = self.get_valid_record_ids('Publisher')
         params_list = (
             (None, f_ids[0], p_ids[0], 'ISBN1'),
-            (w_ids[1], f_ids[1], None, 'ISBN2')
+            (w_ids[1], None, p_ids[0], 'ISBN2')
         )
         self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_publication_publisherid_nullable(self) -> None:
+        """Verifies publisherid is nullable."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        params_list = ((w_ids[0], f_ids[1], None, 'ISBN-1'), )
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_publication_isbn_nullable(self) -> None:
+        """Verifies publisherid is nullable."""
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
+        params_list = ((w_ids[0], f_ids[1], p_ids[2], None), )
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
