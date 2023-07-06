@@ -206,3 +206,20 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
         self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
+
+    def test_publication_workid_fmtid_pubid_unique_constraint(self) -> None:
+        """Verifies the unique constraint of (WorkID, FormatID, PublisherID)"""
+        w_ids = self.get_valid_record_id('Work')
+        f_ids = self.get_valid_record_id('Format')
+        p_ids = self.get_valid_record_id('Publisher')
+        # ids = set(w_ids).union(f_ids, w_ids)
+        unique_list = next(
+            ((w, f, p), ) * 2
+            for w in w_ids for f in f_ids for p in p_ids
+            if w != f and f != p and p != w
+        )
+        isbn_list = tuple((f'ISBN-{i}', ) for i in range(1, 3))
+        params_list = (unique_list[i] + isbn_list[i] for i in range(2))
+        self.assert_unique_table_constraint(
+            self.table_name, self.insert_funcs, params_list, 3
+        )
