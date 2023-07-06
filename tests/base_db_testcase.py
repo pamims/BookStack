@@ -294,13 +294,17 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         matched_items = [
             (a, b) for a, b in zip(params_tuple[0], params_tuple[1]) if a == b
         ]
+        msg = '; '.join(
+            f'{a} {"!=" if a != b else "=="} {b}'
+            for a, b in zip(*params_tuple)
+        )
         assert len(matched_items) == num_items, (
             f"To check UNIQUE constraints properly, the parameter lists must "
             f"contain exactly {num_items} item(s) in common. The particular "
             f"value being tested should be the common item.\nMatching items: "
             f"{'None' if len(matched_items) == 0 else matched_items}, \n"
             f"First set: {params_tuple[0]}\nSecond set: {params_tuple[1]}\n"
-            f"{'; '.join(f'{a} != {b}' for a, b in zip(*params_tuple))}"
+            f"{msg}"
         )
         # get the indices of each match
         column_indices = [
