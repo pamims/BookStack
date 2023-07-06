@@ -1,4 +1,4 @@
-"""Test cases for tables that don't depend on referenced tables"""
+"""Test cases for tables that don't depend on referenced tables."""
 
 import inspect
 from typing import Any, Callable
