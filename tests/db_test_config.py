@@ -34,7 +34,7 @@ DB_DICT_INSERT_FUNCS = {
         'Publication': database.insert_publication,
 
         'Condition': database.insert_condition,
-        'Location': None,
+        'Location': database.insert_location,
         'Book': None
     }
 
@@ -50,7 +50,7 @@ DB_DICT_CREATE_TABLE_FUNCS = {
         'Publication': database.create_table_publication,
 
         'Condition': database.create_table_condition,
-        'Location': None,
+        'Location': database.create_table_location,
         'Book': None
     }
 

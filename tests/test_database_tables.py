@@ -288,3 +288,42 @@ class AuthorTableTestCase(BaseTableTestCase):
         self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_tuple
         )
+
+
+class LocationTableTestCase(BaseTableTestCase):
+    """
+    Tests for validating Location table function. Locations must be inserted
+    correctly with auto-incrementing ID's. Location names must be NOT NULL and
+    UNIQUE. Descriptions must be NULLABLE.
+    """
+    table_name = 'Location'
+
+    def test_location_insert_record_function(self) -> None:
+        """Verifies insert_location() creates a valid record."""
+        params_tuple = ((f'Name{i}', f'Description{i}') for i in range(1, 10))
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_tuple
+        )
+
+    def test_location_name_unique_constraint(self) -> None:
+        """Verifies unique constraint on location name field."""
+        params_tuple = (('Name', 'Description1'), ('Name', 'Description2'))
+        self.assert_unique_table_constraint(
+            self.table_name, self.insert_function, params_tuple
+        )
+
+    def test_location_name_not_null_constraint(self) -> None:
+        """
+        Verifies not null constraints on condition name and description fields.
+        """
+        params_tuple = ((None, 'Description'), )
+        self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_tuple
+        )
+
+    def test_location_description_nullable(self) -> None:
+        """Verifies location description is nullable."""
+        params_tuple = (('Name', None), )
+        self.assert_record_insertion_correct(
+            self.table_name, self.insert_function, params_tuple
+        )

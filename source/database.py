@@ -87,7 +87,7 @@ def create_table_publisher(cursor: sqlite3.Cursor) -> None:
 
 @db_connection
 def create_table_condition(cursor: sqlite3.Cursor) -> None:
-    """Create publisher table query."""
+    """Create condition table query."""
     cursor.execute(
         '''
         CREATE TABLE Condition (
@@ -165,6 +165,20 @@ def create_table_publication(cursor: sqlite3.Cursor) -> None:
             FOREIGN KEY (WorkID) REFERENCES Work(ID),
             FOREIGN KEY (FormatID) REFERENCES Format(ID),
             FOREIGN KEY (PublisherID) REFERENCES Publisher(ID)
+        )
+        '''
+    )
+
+
+@db_connection
+def create_table_location(cursor: sqlite3.Cursor) -> None:
+    """Create location table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Location (
+            ID INTEGER PRIMARY KEY,
+            Name TEXT UNIQUE NOT NULL,
+            Description TEXT
         )
         '''
     )
@@ -286,5 +300,18 @@ def insert_publication(
         '''
         INSERT INTO Publication (WorkID, FormatID, PublisherID, ISBN)
         VALUES (?, ?, ?, ?)
+        ''', args
+    )
+
+
+@db_connection
+def insert_location(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
+    """Insert record into condition table."""
+    cursor.execute(
+        '''
+        INSERT INTO Location (Name, Description)
+        VALUES (?, ?)
         ''', args
     )
