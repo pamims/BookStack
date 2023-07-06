@@ -35,8 +35,8 @@ class BaseDependentTableTestCase(BaseTableTestCase):
         super().setUp()
         for create_table_func in self.create_table_funcs:
             create_table_func(self.db_path)
-        # Make 5 insertions in each table.
-        for i in range(1, 6):
+        # Make 3 insertions in each table.
+        for i in range(1, 4):
             for table_name, insert_func in zip(
                 self.referenced_table_names, self.insert_funcs
             ):
