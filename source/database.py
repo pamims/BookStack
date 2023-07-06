@@ -150,6 +150,26 @@ def create_table_work(cursor: sqlite3.Cursor) -> None:
     )
 
 
+@db_connection
+def create_table_publication(cursor: sqlite3.Cursor) -> None:
+    """Create publication table query."""
+    cursor.execute(
+        '''
+        CREATE TABLE Publication (
+            ID INTEGER PRIMARY KEY,
+            WorkID INTEGER NOT NULL,
+            FormatID INTEGER NOT NULL,
+            PublisherID INTEGER,
+            ISBN TEXT UNIQUE,
+            UNIQUE (WorkID, FormatID, PublisherID),
+            FOREIGN KEY (WorkID) REFERENCES Work(ID),
+            FOREIGN KEY (FormatID) REFERENCES Format(ID),
+            FOREIGN KEY (PublisherID) REFERENCES Publisher(ID)
+        )
+        '''
+    )
+
+
 # Insertion Functions
 
 
@@ -253,5 +273,18 @@ def insert_work(
         '''
         INSERT INTO Work (TitleAuthorID, GenreID)
         VALUES (?, ?)
+        ''', args
+    )
+
+
+@db_connection
+def insert_publication(
+    cursor: sqlite3.Cursor, *args: Union[str, int, float]
+) -> None:
+    """Insert record into publication table."""
+    cursor.execute(
+        '''
+        INSERT INTO Publication (WorkID, FormatID, PublisherID, ISBN)
+        VALUES (?, ?, ?, ?)
         ''', args
     )
