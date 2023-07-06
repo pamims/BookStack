@@ -73,8 +73,8 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_insert_record_creation(self) -> None:
         """Verifies insert_titleauthor() creates a valid record."""
-        title_ids = self.get_valid_record_id('Title')
-        author_ids = self.get_valid_record_id('Author')
+        title_ids = self.get_valid_record_ids('Title')
+        author_ids = self.get_valid_record_ids('Author')
         author_ids = author_ids[-1:] + author_ids[:-1]
         params_list = tuple(zip(title_ids, author_ids))
         self.assert_record_insertion_correct(
@@ -83,8 +83,8 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_authorid_titleid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleID, AuthorID pairs."""
-        title_ids = self.get_valid_record_id('Title')
-        author_ids = self.get_valid_record_id('Author')
+        title_ids = self.get_valid_record_ids('Title')
+        author_ids = self.get_valid_record_ids('Author')
         params_list = next(
             ((t, a), ) * 2 for t in title_ids for a in author_ids if t != a
         )
@@ -94,8 +94,8 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_authorid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of authorid."""
-        title_ids = self.get_valid_record_id('Title')
-        author_ids = self.get_valid_record_id('Author')
+        title_ids = self.get_valid_record_ids('Title')
+        author_ids = self.get_valid_record_ids('Author')
         ids = set(title_ids).union(author_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
@@ -107,8 +107,8 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
 
     def test_titleauthor_titleid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of titleid."""
-        title_ids = self.get_valid_record_id('Title')
-        author_ids = self.get_valid_record_id('Author')
+        title_ids = self.get_valid_record_ids('Title')
+        author_ids = self.get_valid_record_ids('Author')
         ids = set(title_ids).union(author_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
@@ -131,8 +131,8 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_insert_record_creation(self) -> None:
         """Verifies insert_work() creates a valid record."""
-        ta_ids = self.get_valid_record_id('TitleAuthor')
-        genre_ids = self.get_valid_record_id('Genre')
+        ta_ids = self.get_valid_record_ids('TitleAuthor')
+        genre_ids = self.get_valid_record_ids('Genre')
         genre_ids = genre_ids[-1:] + genre_ids[:-1]
         params_list = tuple(zip(ta_ids, genre_ids))
         self.assert_record_insertion_correct(
@@ -141,8 +141,8 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_titleauthorid_genreid_unique_constraint(self) -> None:
         """Verifies the unique constraint of TitleAuthorID, GenreID pairs."""
-        ta_ids = self.get_valid_record_id('TitleAuthor')
-        genre_ids = self.get_valid_record_id('Genre')
+        ta_ids = self.get_valid_record_ids('TitleAuthor')
+        genre_ids = self.get_valid_record_ids('Genre')
         params_list = next(
             ((ta, g), ) * 2 for ta in ta_ids for g in genre_ids if ta != g
         )
@@ -152,8 +152,8 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_genreid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of genreid."""
-        ta_ids = self.get_valid_record_id('TitleAuthor')
-        genre_ids = self.get_valid_record_id('Genre')
+        ta_ids = self.get_valid_record_ids('TitleAuthor')
+        genre_ids = self.get_valid_record_ids('Genre')
         ids = set(ta_ids).union(genre_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
@@ -165,8 +165,8 @@ class WorkTableTestCase(BaseDependentTableTestCase):
 
     def test_work_titleauthorid_foreign_key_constraint(self) -> None:
         """Verifies the foreign key constraint of titleauthorid."""
-        ta_ids = self.get_valid_record_id('TitleAuthor')
-        genre_ids = self.get_valid_record_id('Genre')
+        ta_ids = self.get_valid_record_ids('TitleAuthor')
+        genre_ids = self.get_valid_record_ids('Genre')
         ids = set(ta_ids).union(genre_ids)
         invalid_id = next(
             i for i in range(1, len(ids) + 2) if i not in ids
@@ -196,10 +196,10 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
 
     def test_publication_insert_record_creation(self) -> None:
         """Verifies insert_publication() creates a valid record."""
-        work_ids = self.get_valid_record_id('Work')
-        fmt_ids = self.get_valid_record_id('Format')
+        work_ids = self.get_valid_record_ids('Work')
+        fmt_ids = self.get_valid_record_ids('Format')
         fmt_ids = fmt_ids[-1:] + fmt_ids[:-1]
-        pub_ids = self.get_valid_record_id('Publisher')
+        pub_ids = self.get_valid_record_ids('Publisher')
         pub_ids = pub_ids[-2:] + pub_ids[:-2]
         isbns = (f'ISBN-{i}' for i in range(1, len(pub_ids) + 2))
         params_list = tuple(zip(work_ids, fmt_ids, pub_ids, isbns))
@@ -209,9 +209,9 @@ class PublicationTableTestCase(BaseDependentTableTestCase):
 
     def test_publication_workid_fmtid_pubid_unique_constraint(self) -> None:
         """Verifies the unique constraint of (WorkID, FormatID, PublisherID)"""
-        w_ids = self.get_valid_record_id('Work')
-        f_ids = self.get_valid_record_id('Format')
-        p_ids = self.get_valid_record_id('Publisher')
+        w_ids = self.get_valid_record_ids('Work')
+        f_ids = self.get_valid_record_ids('Format')
+        p_ids = self.get_valid_record_ids('Publisher')
         # ids = set(w_ids).union(f_ids, w_ids)
         unique_list = next(
             ((w, f, p), ) * 2

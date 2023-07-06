@@ -115,7 +115,7 @@ class BaseDatabaseModuleTestCase(unittest.TestCase):
         return result
 
     @classmethod
-    def get_valid_record_id(cls, table_name: str) -> Optional[list[int]]:
+    def get_valid_record_ids(cls, table_name: str) -> Optional[list[int]]:
         """Returns all ID (primary key) column values from a table."""
         cls.validate_cursor(
             "Could not get Record IDs. No database connection."
