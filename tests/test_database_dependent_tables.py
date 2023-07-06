@@ -118,6 +118,15 @@ class TitleAuthorTableTestCase(BaseDependentTableTestCase):
             self.table_name, self.insert_function, params_list
         )
 
+    def test_titleauthor_titleid_authorid_not_null_constraint(self) -> None:
+        """Verifies titleid and authorid not null constraints."""
+        title_ids = self.get_valid_record_ids('Title')
+        author_ids = self.get_valid_record_ids('Author')
+        params_list = ((title_ids[0], None), (None, author_ids[0]))
+        self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
 
 class WorkTableTestCase(BaseDependentTableTestCase):
     """
@@ -171,6 +180,22 @@ class WorkTableTestCase(BaseDependentTableTestCase):
         )
         params_list = ((invalid_id, genre_ids[0]), )
         self.assert_foreign_key_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_work_titleauthorid_not_null_constraint(self) -> None:
+        """Verifies titleauthorid not null constraint."""
+        genre_ids = self.get_valid_record_ids('Genre')
+        params_list = ((None, genre_ids[0]), )
+        self.assert_not_null_table_constraints(
+            self.table_name, self.insert_function, params_list
+        )
+
+    def test_work_genreid_nullable(self) -> None:
+        """Verifies genreid is nullable."""
+        ta_ids = self.get_valid_record_ids('TitleAuthor')
+        params_list = tuple((ta, None) for ta in ta_ids)
+        self.assert_record_insertion_correct(
             self.table_name, self.insert_function, params_list
         )
 

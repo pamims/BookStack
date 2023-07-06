@@ -123,8 +123,8 @@ def create_table_titleauthor(cursor: sqlite3.Cursor) -> None:
         '''
         CREATE TABLE TitleAuthor (
             ID INTEGER PRIMARY KEY,
-            TitleID INTEGER,
-            AuthorID INTEGER,
+            TitleID INTEGER NOT NULL,
+            AuthorID INTEGER NOT NULL,
             UNIQUE (TitleID, AuthorID),
             FOREIGN KEY (TitleID) REFERENCES Title(ID),
             FOREIGN KEY (AuthorID) REFERENCES Author(ID)
@@ -140,7 +140,7 @@ def create_table_work(cursor: sqlite3.Cursor) -> None:
         '''
         CREATE TABLE Work (
             ID INTEGER PRIMARY KEY,
-            TitleAuthorID INTEGER,
+            TitleAuthorID INTEGER NOT NULL,
             GenreID INTEGER,
             UNIQUE (TitleAuthorID, GenreID),
             FOREIGN KEY (TitleAuthorID) REFERENCES TitleAuthor(ID),
